@@ -16,12 +16,144 @@
 static nanoc_vm_t *g_active = NULL;
 static int g_initialized = 0;
 
+/* ids of the built-in external functions (assigned during init) */
+static uint8_t g_f_ta_send, g_f_ta_send_s, g_f_ta_signal,
+	g_f_ta_recv, g_f_ta_port, g_f_ta_topic, g_f_ta_payload,
+	g_f_ta_recv_sig, g_f_ta_sig_port, g_f_ta_sig_val, g_f_key;
+
+static int host_xfunc(void *user, uint8_t id);
+
 static void ensure_init(void)
 {
-	if (!g_initialized) {
-		nc_init();
-		g_initialized = 1;
+	if (g_initialized)
+		return;
+	nc_init();
+
+	uint8_t t_num[] = { NB_NUM, NB_NUM, NB_NUM, NB_NUM, NB_NUM };
+	uint8_t t_s[]   = { NB_NUM, NB_NUM, NB_STR };
+	uint8_t t_2n[]  = { NB_NUM, NB_NUM };
+	uint8_t t_1n[]  = { NB_NUM };
+	uint8_t t_0[]   = { NB_NONE };
+
+	/* nc_define_external_function() returns NB_XFUNC + idx; store the idx */
+	g_f_ta_send     = nc_define_external_function("ta_send", 5, t_num, NB_NONE) - NB_XFUNC;
+	g_f_ta_send_s   = nc_define_external_function("ta_send_s", 3, t_s, NB_NONE) - NB_XFUNC;
+	g_f_ta_signal   = nc_define_external_function("ta_signal", 2, t_2n, NB_NONE) - NB_XFUNC;
+	g_f_ta_recv     = nc_define_external_function("ta_recv", 0, t_0, NB_NUM) - NB_XFUNC;
+	g_f_ta_port     = nc_define_external_function("ta_port", 0, t_0, NB_NUM) - NB_XFUNC;
+	g_f_ta_topic    = nc_define_external_function("ta_topic", 0, t_0, NB_NUM) - NB_XFUNC;
+	g_f_ta_payload  = nc_define_external_function("ta_payload", 1, t_1n, NB_NUM) - NB_XFUNC;
+	g_f_ta_recv_sig = nc_define_external_function("ta_recv_sig", 0, t_0, NB_NUM) - NB_XFUNC;
+	g_f_ta_sig_port = nc_define_external_function("ta_sig_port", 0, t_0, NB_NUM) - NB_XFUNC;
+	g_f_ta_sig_val  = nc_define_external_function("ta_sig_val", 0, t_0, NB_NUM) - NB_XFUNC;
+	g_f_key         = nc_define_external_function("key", 0, t_0, NB_NUM) - NB_XFUNC;
+
+	g_initialized = 1;
+}
+
+/* ---- outgoing queue helpers ---- */
+
+static int post_out_cmnd(nanoc_vm_t *h, uint16_t port, uint16_t topic,
+		const uint16_t *words, uint16_t n, uint16_t type)
+{
+	if (n > NANOC_MAX_CMND_WORDS - 1)
+		return -1;
+	if (h->cmnd_count >= NANOC_CMND_QUEUE_LEN)
+		return -1;
+	nanoc_cmnd_t *c = &h->cmnd_q[h->cmnd_tail];
+	c->type = type ? type : 1;
+	c->port = port;
+	c->length = (uint16_t)(1 + n);
+	c->words[0] = topic;
+	if (n && words)
+		memcpy(&c->words[1], words, n * sizeof(uint16_t));
+	h->cmnd_tail = (h->cmnd_tail + 1) % NANOC_CMND_QUEUE_LEN;
+	h->cmnd_count++;
+	return 1;
+}
+
+static int post_out_signal(nanoc_vm_t *h, uint16_t port, uint16_t val)
+{
+	if (h->sig_count >= NANOC_SIGNAL_QUEUE_LEN)
+		return -1;
+	nanoc_signal_t *s = &h->sig_q[h->sig_tail];
+	s->port = port;
+	s->signal = val;
+	h->sig_tail = (h->sig_tail + 1) % NANOC_SIGNAL_QUEUE_LEN;
+	h->sig_count++;
+	return 1;
+}
+
+/* ---- built-in external function dispatch ---- */
+
+static int host_xfunc(void *user, uint8_t id)
+{
+	nanoc_vm_t *h = user;
+	void *vm = h->vm;
+
+	if (id == g_f_ta_send) {
+		int32_t c = nc_pop_num(vm);
+		int32_t b = nc_pop_num(vm);
+		int32_t a = nc_pop_num(vm);
+		int32_t topic = nc_pop_num(vm);
+		int32_t port = nc_pop_num(vm);
+		uint16_t w[3] = { (uint16_t)a, (uint16_t)b, (uint16_t)c };
+		post_out_cmnd(h, (uint16_t)port, (uint16_t)topic, w, 3, 1);
+	} else if (id == g_f_ta_send_s) {
+		char buf[NANOC_MAX_CMND_WORDS];
+		nc_pop_str(vm, buf, sizeof(buf));
+		int32_t topic = nc_pop_num(vm);
+		int32_t port = nc_pop_num(vm);
+		uint16_t w[NANOC_MAX_CMND_WORDS];
+		uint16_t n = 0;
+		for (size_t i = 0; buf[i] && n < NANOC_MAX_CMND_WORDS - 1; i++)
+			w[n++] = (uint16_t)(unsigned char)buf[i];
+		post_out_cmnd(h, (uint16_t)port, (uint16_t)topic, w, n, 2);
+	} else if (id == g_f_ta_signal) {
+		int32_t val = nc_pop_num(vm);
+		int32_t port = nc_pop_num(vm);
+		post_out_signal(h, (uint16_t)port, (uint16_t)val);
+	} else if (id == g_f_ta_recv) {
+		if (h->in_cmnd_count == 0) {
+			nc_push_num(vm, 0);
+		} else {
+			h->latch_cmnd = h->in_cmnd_q[h->in_cmnd_head];
+			h->latch_cmnd_valid = 1;
+			h->in_cmnd_head = (h->in_cmnd_head + 1) % NANOC_CMND_QUEUE_LEN;
+			h->in_cmnd_count--;
+			nc_push_num(vm, 1);
+		}
+	} else if (id == g_f_ta_recv_sig) {
+		if (h->in_sig_count == 0) {
+			nc_push_num(vm, 0);
+		} else {
+			h->latch_sig = h->in_sig_q[h->in_sig_head];
+			h->latch_sig_valid = 1;
+			h->in_sig_head = (h->in_sig_head + 1) % NANOC_SIGNAL_QUEUE_LEN;
+			h->in_sig_count--;
+			nc_push_num(vm, 1);
+		}
+	} else if (id == g_f_ta_port) {
+		nc_push_num(vm, h->latch_cmnd_valid ? h->latch_cmnd.port : 0);
+	} else if (id == g_f_ta_topic) {
+		nc_push_num(vm, h->latch_cmnd_valid && h->latch_cmnd.length > 0
+			? h->latch_cmnd.words[0] : 0);
+	} else if (id == g_f_ta_payload) {
+		int32_t n = nc_pop_num(vm);   /* 0-based payload index */
+		uint16_t v = 0;
+		if (h->latch_cmnd_valid && n >= 0 && (uint16_t)(n + 1) < h->latch_cmnd.length)
+			v = h->latch_cmnd.words[n + 1];
+		nc_push_num(vm, v);
+	} else if (id == g_f_ta_sig_port) {
+		nc_push_num(vm, h->latch_sig_valid ? h->latch_sig.port : 0);
+	} else if (id == g_f_ta_sig_val) {
+		nc_push_num(vm, h->latch_sig_valid ? h->latch_sig.signal : 0);
+	} else if (id == g_f_key) {
+		nc_push_num(vm, nanoc_host_pop_input(h));
+	} else {
+		nc_push_num(vm, 0);
 	}
+	return NB_BUSY;
 }
 
 /* ---- core host hooks ---- */
@@ -139,6 +271,8 @@ nanoc_vm_t *nanoc_host_create(void)
 		return NULL;
 	}
 	h->dbg_mode = 1;
+	h->xfunc_cb = host_xfunc;
+	h->xfunc_user = h;
 	return h;
 }
 
@@ -180,10 +314,10 @@ int nanoc_host_load(nanoc_vm_t *h, const char *source)
 	uint16_t err = nc_compile(h->vm, h);
 	g_active = NULL;
 
-	/* clear breakpoints: the code array was rebuilt */
 	for (int i = 0; i < NANOC_MAX_BREAKPOINTS; i++)
 		h->bps[i].used = 0;
 
+	nc_reset(h->vm);
 	return (int)err;
 }
 
@@ -217,7 +351,7 @@ uint16_t nanoc_host_run(nanoc_vm_t *h, uint16_t cycles)
 		}
 		if (ret == NB_HALTED) {
 			h->dbg_halted = 1;
-			h->dbg_reason = 1; /* breakpoint */
+			h->dbg_reason = 1;
 		}
 		return ret;
 	}
@@ -238,4 +372,9 @@ void nanoc_host_set_xfunc_cb(nanoc_vm_t *h,
 {
 	h->xfunc_cb = cb;
 	h->xfunc_user = user;
+}
+
+void nanoc_host_set_time(nanoc_vm_t *h, uint32_t now_ms)
+{
+	h->started_ms = now_ms;
 }

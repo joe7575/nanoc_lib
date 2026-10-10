@@ -5,8 +5,14 @@
  *  - source loading / compilation from a memory buffer
  *  - the nc_print / nc_get_code_line host hooks
  *  - terminal output and key input buffers
- *  - external function dispatch
+ *  - external function dispatch (techage + terminal built-ins)
  *  - per-instance techage command/signal queues
+ *
+ * Queue directions (from the mod's point of view):
+ *  - outgoing (VM -> mod): the NanoC program calls ta_send()/ta_signal();
+ *    the mod drains it with nanoclib.techage_read_cmnd/write_signal.
+ *  - incoming (mod -> VM): the mod pushes with nanoclib.techage_write_cmnd;
+ *    the program polls it with ta_recv()/ta_recv_sig().
  *
  * AGPL-3.0-or-later
  */
@@ -74,16 +80,30 @@ typedef struct {
 	int dbg_allow_write;
 	int dbg_user_lines;
 	int dbg_halted;
-	int dbg_reason;      /* last halt reason */
-	int dbg_mode;        /* 0=run 1=halted 2=step ... */
+	int dbg_reason;
+	int dbg_mode;
 	nanoc_bp_t bps[NANOC_MAX_BREAKPOINTS];
 
-	/* techage command queue */
+	/* outgoing queues (VM -> mod) */
 	nanoc_cmnd_t cmnd_q[NANOC_CMND_QUEUE_LEN];
 	int cmnd_head, cmnd_tail, cmnd_count;
-	/* techage signal queue */
 	nanoc_signal_t sig_q[NANOC_SIGNAL_QUEUE_LEN];
 	int sig_head, sig_tail, sig_count;
+
+	/* incoming queues (mod -> VM) */
+	nanoc_cmnd_t in_cmnd_q[NANOC_CMND_QUEUE_LEN];
+	int in_cmnd_head, in_cmnd_tail, in_cmnd_count;
+	nanoc_signal_t in_sig_q[NANOC_SIGNAL_QUEUE_LEN];
+	int in_sig_head, in_sig_tail, in_sig_count;
+
+	/* latched incoming item, read via ta_recv()/ta_recv_sig() */
+	int latch_cmnd_valid;
+	int latch_sig_valid;
+	nanoc_cmnd_t latch_cmnd;
+	nanoc_signal_t latch_sig;
+
+	/* millis() time base */
+	uint32_t started_ms;
 } nanoc_vm_t;
 
 /* ---- lifecycle ---- */
@@ -109,3 +129,6 @@ uint8_t nanoc_host_define_xfunc(const char *name, uint8_t num_params,
 		const uint8_t *types, uint8_t return_type);
 void nanoc_host_set_xfunc_cb(nanoc_vm_t *h,
 		int (*cb)(void *user, uint8_t func_id), void *user);
+
+/* millis since create (used by the millis() built-in) */
+void nanoc_host_set_time(nanoc_vm_t *h, uint32_t now_ms);
