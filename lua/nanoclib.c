@@ -208,6 +208,34 @@ static int l_sleep_remaining(lua_State *L)
 	return 1;
 }
 
+static int l_pack_vm(lua_State *L)
+{
+	nanoc_vm_t *h = check_vm(L, 1);
+	t_VM *vm = (t_VM *)nanoc_host_vm(h);
+	if (!vm) {
+		lua_pushnil(L);
+		return 1;
+	}
+	lua_pushlstring(L, (const char *)vm, sizeof(t_VM));
+	return 1;
+}
+
+static int l_unpack_vm(lua_State *L)
+{
+	nanoc_vm_t *h = check_vm(L, 1);
+	size_t len = 0;
+	const char *s = luaL_checklstring(L, 2, &len);
+	t_VM *vm = (t_VM *)nanoc_host_vm(h);
+	if (!vm || len != sizeof(t_VM)) {
+		lua_pushboolean(L, 0);
+		return 1;
+	}
+	memcpy(vm, s, sizeof(t_VM));
+	h->sleeping = 0;
+	lua_pushboolean(L, 1);
+	return 1;
+}
+
 /* ---- terminal I/O ---- */
 
 static int l_output(lua_State *L)
@@ -410,6 +438,8 @@ static const luaL_Reg nanoc_funcs[] = {
 	{ "run",                l_run },
 	{ "reset",              l_reset },
 	{ "sleep_remaining",    l_sleep_remaining },
+	{ "pack_vm",            l_pack_vm },
+	{ "unpack_vm",          l_unpack_vm },
 	{ "output",             l_output },
 	{ "output_clear",       l_output_clear },
 	{ "push_key",           l_push_key },
