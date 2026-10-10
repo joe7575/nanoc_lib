@@ -9,6 +9,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+
+static uint32_t now_ms(void)
+{
+	struct timespec ts;
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+	return (uint32_t)((uint64_t)ts.tv_sec * 1000u + (uint64_t)(ts.tv_nsec / 1000000));
+}
 
 /* The NanoC core calls these two global hooks. Because the core keeps its
  * compiler/debugger state globally (single active instance), we track the
@@ -19,7 +27,7 @@ static int g_initialized = 0;
 /* ids of the built-in external functions (assigned during init) */
 static uint8_t g_f_ta_send, g_f_ta_send_s, g_f_ta_signal,
 	g_f_ta_recv, g_f_ta_port, g_f_ta_topic, g_f_ta_payload,
-	g_f_ta_recv_sig, g_f_ta_sig_port, g_f_ta_sig_val, g_f_key;
+	g_f_ta_recv_sig, g_f_ta_sig_port, g_f_ta_sig_val, g_f_key, g_f_sleep;
 
 static int host_xfunc(void *user, uint8_t id);
 
@@ -47,6 +55,7 @@ static void ensure_init(void)
 	g_f_ta_sig_port = nc_define_external_function("ta_sig_port", 0, t_0, NB_NUM) - NB_XFUNC;
 	g_f_ta_sig_val  = nc_define_external_function("ta_sig_val", 0, t_0, NB_NUM) - NB_XFUNC;
 	g_f_key         = nc_define_external_function("key", 0, t_0, NB_NUM) - NB_XFUNC;
+	g_f_sleep       = nc_define_external_function("sleep", 1, t_1n, NB_NONE) - NB_XFUNC;
 
 	g_initialized = 1;
 }
@@ -150,10 +159,15 @@ static int host_xfunc(void *user, uint8_t id)
 		nc_push_num(vm, h->latch_sig_valid ? h->latch_sig.signal : 0);
 	} else if (id == g_f_key) {
 		nc_push_num(vm, nanoc_host_pop_input(h));
+	} else if (id == g_f_sleep) {
+		int32_t ms = nc_pop_num(vm);
+		h->sleeping = 1;
+		h->sleep_until_ms = now_ms() + (uint32_t)(ms > 0 ? ms : 0);
+		return 1;   /* stop the run loop until the sleep elapses */
 	} else {
 		nc_push_num(vm, 0);
 	}
-	return NB_BUSY;
+	return 0;
 }
 
 /* ---- core host hooks ---- */
@@ -334,6 +348,12 @@ uint16_t nanoc_host_run(nanoc_vm_t *h, uint16_t cycles)
 {
 	g_active = h;
 
+	if (h->sleeping) {
+		if (now_ms() < h->sleep_until_ms)
+			return NANOC_SLEEP;
+		h->sleeping = 0;
+	}
+
 	for (;;) {
 		uint16_t c = cycles;
 		uint16_t ret = nc_run(h->vm, &c);
@@ -341,10 +361,12 @@ uint16_t nanoc_host_run(nanoc_vm_t *h, uint16_t cycles)
 
 		if (ret >= NB_XFUNC && ret < NB_HALTED) {
 			uint8_t id = (uint8_t)(ret - NB_XFUNC);
-			if (h->xfunc_cb)
-				h->xfunc_cb(h->xfunc_user, id);
-			else
+			if (h->xfunc_cb) {
+				if (h->xfunc_cb(h->xfunc_user, id) != 0)
+					return NANOC_SLEEP;
+			} else {
 				nc_push_num(h->vm, 0);
+			}
 			if (cycles <= 1)
 				return NB_BUSY;
 			continue;
@@ -355,6 +377,14 @@ uint16_t nanoc_host_run(nanoc_vm_t *h, uint16_t cycles)
 		}
 		return ret;
 	}
+}
+
+uint32_t nanoc_host_sleep_remaining(nanoc_vm_t *h)
+{
+	if (!h->sleeping)
+		return 0;
+	uint32_t now = now_ms();
+	return (now < h->sleep_until_ms) ? (h->sleep_until_ms - now) : 0;
 }
 
 /* ---- external functions ---- */

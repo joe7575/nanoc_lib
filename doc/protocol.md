@@ -93,6 +93,29 @@ verbatim on the TCP wire (section 3).
 | `pack_vm(pos)` | string | Serialize VM state |
 | `unpack_vm(pos, s)` | bool | Restore VM state |
 
+### 1.7 Built-in external functions (NanoC language)
+
+Available to NanoC programs (registered by the host, not via Lua):
+
+| Function | Description |
+|---|---|
+| `ta_send(port, topic, a, b, c)` | Queue an outgoing command (`topic < 128`) |
+| `ta_send_s(port, topic, str)` | Queue an outgoing string command |
+| `ta_signal(port, value)` | Queue an outgoing on/off signal |
+| `ta_recv()` / `ta_recv_sig()` | Latch the next incoming command/signal, returns 1/0 |
+| `ta_port()` / `ta_topic()` / `ta_payload(i)` | Read the latched incoming command |
+| `ta_sig_port()` / `ta_sig_val()` | Read the latched incoming signal |
+| `key()` | Next key byte, or -1 |
+| `sleep(ms)` | Suspend the task for `ms` milliseconds |
+
+`sleep()` makes `run()` return `NANOC_SLEEP` (512). The mod should wait
+`nanoclib.sleep_remaining(pos)` ms before running again. Convenience
+constants: `nanoclib.END` (0), `nanoclib.ERROR` (1), `nanoclib.BUSY` (3),
+`nanoclib.SLEEP` (512).
+
+VM state (PC, variables, stack) is preserved across `run()` calls, so a
+`while (1) { ... sleep(...) }` loop behaves like a task.
+
 ---
 
 ## 2. Techage command queue ("Beduino API")

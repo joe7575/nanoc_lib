@@ -201,6 +201,13 @@ static int l_reset(lua_State *L)
 	return 0;
 }
 
+static int l_sleep_remaining(lua_State *L)
+{
+	nanoc_vm_t *h = check_vm(L, 1);
+	lua_pushinteger(L, (lua_Integer)nanoc_host_sleep_remaining(h));
+	return 1;
+}
+
 /* ---- terminal I/O ---- */
 
 static int l_output(lua_State *L)
@@ -402,6 +409,7 @@ static const luaL_Reg nanoc_funcs[] = {
 	{ "load",               l_load },
 	{ "run",                l_run },
 	{ "reset",              l_reset },
+	{ "sleep_remaining",    l_sleep_remaining },
 	{ "output",             l_output },
 	{ "output_clear",       l_output_clear },
 	{ "push_key",           l_push_key },
@@ -446,5 +454,9 @@ int luaopen_nanoclib(lua_State *L)
 
 	/* module table */
 	luaL_register(L, "nanoclib", nanoc_funcs);
+	lua_pushinteger(L, NB_END);      lua_setfield(L, -2, "END");
+	lua_pushinteger(L, NB_ERROR);    lua_setfield(L, -2, "ERROR");
+	lua_pushinteger(L, NB_BUSY);     lua_setfield(L, -2, "BUSY");
+	lua_pushinteger(L, NANOC_SLEEP); lua_setfield(L, -2, "SLEEP");
 	return 1;
 }

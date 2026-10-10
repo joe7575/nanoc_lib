@@ -27,6 +27,10 @@
 #define NANOC_VERSION        "0.1.0"
 #define NANOC_PROTOCOL       1
 
+/* Extra return value of nanoc_host_run(): the program called sleep() and is
+ * waiting; resume after nanoc_host_sleep_remaining() has elapsed. */
+#define NANOC_SLEEP          0x0200
+
 #define NANOC_MAX_BREAKPOINTS 32
 #define NANOC_MAX_CMND_WORDS  64   /* topic + up to 63 payload words */
 #define NANOC_CMND_QUEUE_LEN  8
@@ -102,6 +106,10 @@ typedef struct {
 	nanoc_cmnd_t latch_cmnd;
 	nanoc_signal_t latch_sig;
 
+	/* sleep() state */
+	int sleeping;
+	uint32_t sleep_until_ms;
+
 	/* millis() time base */
 	uint32_t started_ms;
 } nanoc_vm_t;
@@ -132,3 +140,6 @@ void nanoc_host_set_xfunc_cb(nanoc_vm_t *h,
 
 /* millis since create (used by the millis() built-in) */
 void nanoc_host_set_time(nanoc_vm_t *h, uint32_t now_ms);
+
+/* remaining sleep time in ms (0 if not sleeping) */
+uint32_t nanoc_host_sleep_remaining(nanoc_vm_t *h);
