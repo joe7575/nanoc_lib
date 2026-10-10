@@ -13,6 +13,7 @@ set(NANOC_CORE
     ./src/nanoc_debug.c
     ./src/nanoc_host.c
     ./src/nanoc_techage.c
+    ./src/nanoc_net.c
 )
 
 # Standalone host hooks for a native test/CLI; the Lua C module is built by

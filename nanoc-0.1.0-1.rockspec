@@ -33,6 +33,7 @@ build = {
                 "./src/nanoc_debug.c",
                 "./src/nanoc_host.c",
                 "./src/nanoc_techage.c",
+                "./src/nanoc_net.c",
                 "./lua/nanoclib.c"
             }
         }

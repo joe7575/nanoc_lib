@@ -13,6 +13,7 @@
 #include "nanoc_host.h"
 #include "nanoc_debug.h"
 #include "nanoc_techage.h"
+#include "nanoc_net.h"
 
 #define NANOC_VM_MT "nanoclib.vm"
 #define NANOC_REG   "nanoclib.registry"
@@ -424,6 +425,74 @@ static int l_techage_read_signal(lua_State *L)
 	return 2;
 }
 
+/* ---- non-blocking TCP sockets ---- */
+
+static int l_net_listen(lua_State *L)
+{
+	const char *host = luaL_checkstring(L, 1);
+	int port = (int)luaL_checkinteger(L, 2);
+	int id = nanoc_net_listen(host, port);
+	if (id < 0) {
+		lua_pushnil(L);
+		lua_pushstring(L, "bind failed");
+		return 2;
+	}
+	lua_pushinteger(L, id);
+	return 1;
+}
+
+static int l_net_accept(lua_State *L)
+{
+	int id = nanoc_net_accept((int)luaL_checkinteger(L, 1));
+	if (id < 0) {
+		lua_pushnil(L);
+		return 1;
+	}
+	lua_pushinteger(L, id);
+	return 1;
+}
+
+static int l_net_recv(lua_State *L)
+{
+	char buf[4096];
+	int id = (int)luaL_checkinteger(L, 1);
+	int n = nanoc_net_recv(id, buf, sizeof(buf));
+	if (n > 0) {
+		lua_pushlstring(L, buf, (size_t)n);
+		return 1;
+	}
+	lua_pushnil(L);
+	lua_pushstring(L, n == 0 ? "timeout" : "closed");
+	return 2;
+}
+
+static int l_net_send(lua_State *L)
+{
+	int id = (int)luaL_checkinteger(L, 1);
+	size_t len = 0;
+	const char *data = luaL_checklstring(L, 2, &len);
+	if (nanoc_net_send(id, data, (int)len) < 0) {
+		lua_pushboolean(L, 0);
+		return 1;
+	}
+	nanoc_net_flush(id);
+	lua_pushboolean(L, 1);
+	return 1;
+}
+
+static int l_net_flush(lua_State *L)
+{
+	int id = (int)luaL_checkinteger(L, 1);
+	lua_pushboolean(L, nanoc_net_flush(id) == 0);
+	return 1;
+}
+
+static int l_net_close(lua_State *L)
+{
+	nanoc_net_close((int)luaL_checkinteger(L, 1));
+	return 0;
+}
+
 /* ---- registration ---- */
 
 static const luaL_Reg nanoc_funcs[] = {
@@ -457,6 +526,12 @@ static const luaL_Reg nanoc_funcs[] = {
 	{ "techage_read_cmnd",  l_techage_read_cmnd },
 	{ "techage_write_signal", l_techage_write_signal },
 	{ "techage_read_signal", l_techage_read_signal },
+	{ "net_listen",         l_net_listen },
+	{ "net_accept",         l_net_accept },
+	{ "net_recv",           l_net_recv },
+	{ "net_send",           l_net_send },
+	{ "net_flush",          l_net_flush },
+	{ "net_close",          l_net_close },
 	{ NULL, NULL }
 };
 
