@@ -35,6 +35,7 @@
 #define NANOC_MAX_CMND_WORDS  64   /* topic + up to 63 payload words */
 #define NANOC_CMND_QUEUE_LEN  8
 #define NANOC_SIGNAL_QUEUE_LEN 16
+#define NANOC_OUT_MAX         (32 * 1024)  /* hard cap for the terminal output buffer */
 
 /* One techage command: [type, length, topic, payload...] */
 typedef struct {

@@ -228,6 +228,14 @@ void nanoc_host_out_write(nanoc_vm_t *h, const char *s, size_t n)
 	memcpy(h->out + h->out_len, s, n);
 	h->out_len += n;
 	h->out[h->out_len] = '\0';
+
+	/* hard cap: keep only the most recent bytes so the buffer cannot grow
+	 * without bound within a single tick */
+	if (h->out_len > NANOC_OUT_MAX) {
+		size_t drop = h->out_len - NANOC_OUT_MAX;
+		memmove(h->out, h->out + drop, h->out_len - drop + 1);
+		h->out_len -= drop;
+	}
 }
 
 const char *nanoc_host_output(nanoc_vm_t *h, size_t *len)
