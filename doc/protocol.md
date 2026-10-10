@@ -197,6 +197,8 @@ message := u32 cmd, u32 data[N]
 | `0x0D` | `VAR_WRITE` | `[0]`: scope, `[1]`: index, `[2]`: value |
 | `0x0E` | `ARR_READ` | `[0]`: scope, `[1]`: index, `[2]`: first element |
 | `0x0F` | `BACKTRACE` | |
+| `0x20` | `PROG_GET` | request the stored program source |
+| `0x21` | `PROG_SET` | `[0]`: length, `[1..]`: source bytes (UTF-8, one per word) |
 
 ### 3.2 Events (server -> client)
 
@@ -246,6 +248,8 @@ Every response echoes the command and puts a status in `data[0]`:
 | `VAR_WRITE` | `status` |
 | `ARR_READ` | `status, first, count, values...` |
 | `BACKTRACE` | `status, count, (line, pc) * count` |
+| `PROG_GET` | `status, length, bytes...` (one byte per word) |
+| `PROG_SET` | `status` |
 
 Events (unsolicited, sent on the debug channel):
 
