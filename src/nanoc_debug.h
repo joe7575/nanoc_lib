@@ -33,6 +33,11 @@ void nanoc_dbg_clear_all(nanoc_vm_t *h);
 /* Execute a single VM instruction (stepping over a breakpoint trap). */
 int  nanoc_dbg_step(nanoc_vm_t *h);
 
+/* Line-granular stepping. mode: 0 = into, 1 = over, 2 = out.
+ * Runs instructions until the source line changes (respecting the frame
+ * pointer for "over"/"out"). Returns the halt reason. */
+int  nanoc_dbg_step_mode(nanoc_vm_t *h, int mode, int max_steps);
+
 uint16_t nanoc_dbg_pc(nanoc_vm_t *h);
 int  nanoc_dbg_line(nanoc_vm_t *h);
 int  nanoc_dbg_reason(nanoc_vm_t *h);

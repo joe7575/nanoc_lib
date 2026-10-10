@@ -323,6 +323,15 @@ static int l_step(lua_State *L)
 	return 1;
 }
 
+static int l_step_mode(lua_State *L)
+{
+	nanoc_vm_t *h = check_vm(L, 1);
+	int mode = (int)luaL_optinteger(L, 2, 0);
+	int max_steps = (int)luaL_optinteger(L, 3, 100000);
+	lua_pushinteger(L, nanoc_dbg_step_mode(h, mode, max_steps));
+	return 1;
+}
+
 static int l_get_pc(lua_State *L)
 {
 	nanoc_vm_t *h = check_vm(L, 1);
@@ -633,6 +642,7 @@ static const luaL_Reg nanoc_funcs[] = {
 	{ "clear_breakpoint",   l_clear_breakpoint },
 	{ "clear_breakpoints",  l_clear_breakpoints },
 	{ "step",               l_step },
+	{ "step_mode",          l_step_mode },
 	{ "get_pc",             l_get_pc },
 	{ "get_line",           l_get_line },
 	{ "get_reason",         l_get_reason },

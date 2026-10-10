@@ -95,7 +95,7 @@ void nanoc_dbg_clear_all(nanoc_vm_t *h)
 	}
 }
 
-int nanoc_dbg_step(nanoc_vm_t *h)
+static uint16_t step_one(nanoc_vm_t *h)
 {
 	t_VM *vm = h->vm;
 	uint16_t pc = vm->pc;
@@ -109,6 +109,65 @@ int nanoc_dbg_step(nanoc_vm_t *h)
 	uint16_t ret = nanoc_host_run(h, 2);
 	if (bp)
 		vm->code[pc] = saved;
+	return ret;
+}
+
+static int dbg_line_at(nanoc_vm_t *h, uint16_t pc)
+{
+	(void)h;
+	uint16_t num = 0;
+	const nc_dbg_line_t *lt = nc_dbg_get_lines(&num);
+	int line = 0;
+	for (uint16_t i = 0; i < num; i++) {
+		if (lt[i].pc <= pc)
+			line = lt[i].line;
+		else
+			break;
+	}
+	return line;
+}
+
+int nanoc_dbg_step(nanoc_vm_t *h)
+{
+	uint16_t ret = step_one(h);
+	if (ret == NB_HALTED) {
+		h->dbg_halted = 1;
+		h->dbg_reason = NANOC_RSN_BREAKPOINT;
+	} else {
+		h->dbg_halted = 0;
+		h->dbg_reason = NANOC_RSN_STEP;
+	}
+	h->dbg_mode = 2;
+	return h->dbg_reason;
+}
+
+int nanoc_dbg_step_mode(nanoc_vm_t *h, int mode, int max_steps)
+{
+	t_VM *vm = h->vm;
+	int start_line = dbg_line_at(h, vm->pc);
+	uint16_t start_fp = vm->fp;
+	uint16_t ret = NB_BUSY;
+
+	if (max_steps <= 0)
+		max_steps = 100000;
+
+	for (int i = 0; i < max_steps; i++) {
+		ret = step_one(h);
+		if (ret != NB_BUSY && ret != NB_HALTED)
+			break;                 /* END / ERROR / RETI ... */
+
+		int line = dbg_line_at(h, vm->pc);
+		if (line != start_line) {
+			if (mode == 0)
+				break;                        /* step into */
+			if (mode == 1 && vm->fp <= start_fp)
+				break;                        /* step over */
+			if (mode == 2 && vm->fp < start_fp)
+				break;                        /* step out */
+		}
+		if (ret == NB_HALTED)
+			break;                 /* hit a breakpoint while stepping */
+	}
 
 	if (ret == NB_HALTED) {
 		h->dbg_halted = 1;
