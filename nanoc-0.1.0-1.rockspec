@@ -23,6 +23,7 @@ build = {
     type = "builtin",
     modules = {
         nanoclib = {
+            incdirs = { "./src" },
             sources = {
                 "./src/nc_scanner.c",
                 "./src/nc_compiler.c",
