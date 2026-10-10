@@ -425,6 +425,120 @@ static int l_techage_read_signal(lua_State *L)
 	return 2;
 }
 
+/* ---- debug introspection ---- */
+
+static int line_for_pc(const nc_dbg_line_t *lt, uint16_t num, uint16_t pc)
+{
+	int line = 0;
+	for (uint16_t i = 0; i < num; i++) {
+		if (lt[i].pc <= pc)
+			line = lt[i].line;
+		else
+			break;
+	}
+	return line;
+}
+
+static int kind_of(uint8_t type)
+{
+	if (type == ID)
+		return 1;      /* INT */
+	if (type == STRID)
+		return 2;      /* STR */
+	if (type == ARR)
+		return 3;      /* ARR */
+	return 0;
+}
+
+static int l_get_variables(lua_State *L)
+{
+	nanoc_vm_t *h = check_vm(L, 1);
+	int scope = (int)luaL_optinteger(L, 2, 0);
+	t_VM *vm = (t_VM *)nanoc_host_vm(h);
+	int n = 0;
+
+	lua_newtable(L);
+
+	if (scope == 0) {
+		uint16_t start = 0;
+		sym_t *sym = nc_get_symbol_table(&start);
+		for (uint16_t i = start; i < cfg_MAX_NUM_SYM; i++) {
+			uint8_t t = sym[i].type;
+			int kind = kind_of(t);
+			if (sym[i].name[0] == '\0' || sym[i].is_local || kind == 0)
+				continue;
+			lua_newtable(L);
+			lua_pushstring(L, sym[i].name);
+			lua_setfield(L, -2, "name");
+			lua_pushinteger(L, kind);
+			lua_setfield(L, -2, "kind");
+			if (kind == 1)
+				lua_pushinteger(L, nc_get_number(vm, (uint8_t)sym[i].value));
+			else if (kind == 2) {
+				char *s = nc_get_string(vm, (uint8_t)sym[i].value);
+				lua_pushstring(L, s ? s : "");
+			} else
+				lua_pushinteger(L, (lua_Integer)sym[i].value);
+			lua_setfield(L, -2, "value");
+			lua_rawseti(L, -2, ++n);
+		}
+	} else {
+		uint16_t num = 0;
+		const nc_dbg_local_t *loc = nc_dbg_get_locals(&num);
+		uint16_t pc = vm->pc;
+		for (uint16_t i = 0; i < num; i++) {
+			if (pc < loc[i].start_pc || pc >= loc[i].end_pc)
+				continue;
+			int kind = kind_of(loc[i].type);
+			if (kind == 0)
+				continue;
+			lua_newtable(L);
+			lua_pushstring(L, loc[i].name);
+			lua_setfield(L, -2, "name");
+			lua_pushinteger(L, kind);
+			lua_setfield(L, -2, "kind");
+			if (loc[i].offs < cfg_STACK_SIZE)
+				lua_pushinteger(L, vm->stack[vm->fp + loc[i].offs]);
+			else
+				lua_pushinteger(L, 0);
+			lua_setfield(L, -2, "value");
+			lua_rawseti(L, -2, ++n);
+		}
+	}
+	return 1;
+}
+
+static int l_get_backtrace(lua_State *L)
+{
+	nanoc_vm_t *h = check_vm(L, 1);
+	t_VM *vm = (t_VM *)nanoc_host_vm(h);
+	uint16_t num = 0;
+	const nc_dbg_line_t *lt = nc_dbg_get_lines(&num);
+	uint16_t fp = vm->fp;
+	uint16_t pc = vm->pc;
+	int n = 0;
+
+	lua_newtable(L);
+	for (int f = 0; f < 16; f++) {
+		lua_newtable(L);
+		lua_pushinteger(L, line_for_pc(lt, num, pc));
+		lua_setfield(L, -2, "line");
+		lua_pushinteger(L, pc);
+		lua_setfield(L, -2, "pc");
+		lua_rawseti(L, -2, ++n);
+
+		if (fp < 2 || fp > cfg_STACK_SIZE)
+			break;
+		uint16_t ret = (uint16_t)vm->stack[fp - 2];
+		uint16_t prev_fp = (uint16_t)vm->stack[fp - 1];
+		if (ret == 0 || ret >= vm->code_size)
+			break;
+		pc = ret;
+		fp = prev_fp;
+	}
+	return 1;
+}
+
 /* ---- non-blocking TCP sockets ---- */
 
 static int l_net_listen(lua_State *L)
@@ -522,6 +636,8 @@ static const luaL_Reg nanoc_funcs[] = {
 	{ "get_pc",             l_get_pc },
 	{ "get_line",           l_get_line },
 	{ "get_reason",         l_get_reason },
+	{ "get_variables",      l_get_variables },
+	{ "get_backtrace",      l_get_backtrace },
 	{ "techage_write_cmnd", l_techage_write_cmnd },
 	{ "techage_read_cmnd",  l_techage_read_cmnd },
 	{ "techage_write_signal", l_techage_write_signal },
