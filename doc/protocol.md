@@ -107,6 +107,7 @@ Available to NanoC programs (registered by the host, not via Lua):
 | `ta_sig_port()` / `ta_sig_val()` | Read the latched incoming signal |
 | `key()` | Next key byte, or -1 |
 | `sleep(ms)` | Suspend the task for `ms` milliseconds |
+| `millis()` | Milliseconds since VM start/reset |
 
 `sleep()` makes `run()` return `NANOC_SLEEP` (512). The mod should wait
 `nanoclib.sleep_remaining(pos)` ms before running again. Convenience

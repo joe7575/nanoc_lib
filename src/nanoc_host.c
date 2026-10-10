@@ -27,7 +27,8 @@ static int g_initialized = 0;
 /* ids of the built-in external functions (assigned during init) */
 static uint8_t g_f_ta_send, g_f_ta_send_s, g_f_ta_signal,
 	g_f_ta_recv, g_f_ta_port, g_f_ta_topic, g_f_ta_payload,
-	g_f_ta_recv_sig, g_f_ta_sig_port, g_f_ta_sig_val, g_f_key, g_f_sleep;
+	g_f_ta_recv_sig, g_f_ta_sig_port, g_f_ta_sig_val, g_f_key, g_f_sleep,
+	g_f_millis;
 
 static int host_xfunc(void *user, uint8_t id);
 
@@ -56,6 +57,7 @@ static void ensure_init(void)
 	g_f_ta_sig_val  = nc_define_external_function("ta_sig_val", 0, t_0, NB_NUM) - NB_XFUNC;
 	g_f_key         = nc_define_external_function("key", 0, t_0, NB_NUM) - NB_XFUNC;
 	g_f_sleep       = nc_define_external_function("sleep", 1, t_1n, NB_NONE) - NB_XFUNC;
+	g_f_millis      = nc_define_external_function("millis", 0, t_0, NB_NUM) - NB_XFUNC;
 
 	g_initialized = 1;
 }
@@ -164,6 +166,8 @@ static int host_xfunc(void *user, uint8_t id)
 		h->sleeping = 1;
 		h->sleep_until_ms = now_ms() + (uint32_t)(ms > 0 ? ms : 0);
 		return 1;   /* stop the run loop until the sleep elapses */
+	} else if (id == g_f_millis) {
+		nc_push_num(vm, (int32_t)(now_ms() - h->started_ms));
 	} else {
 		nc_push_num(vm, 0);
 	}
@@ -287,6 +291,7 @@ nanoc_vm_t *nanoc_host_create(void)
 	h->dbg_mode = 1;
 	h->xfunc_cb = host_xfunc;
 	h->xfunc_user = h;
+	h->started_ms = now_ms();
 	return h;
 }
 
@@ -342,6 +347,7 @@ void nanoc_host_reset(nanoc_vm_t *h)
 	g_active = NULL;
 	h->dbg_halted = 0;
 	h->dbg_reason = 0;
+	h->started_ms = now_ms();
 }
 
 uint16_t nanoc_host_run(nanoc_vm_t *h, uint16_t cycles)
