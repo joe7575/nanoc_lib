@@ -228,6 +228,39 @@ Halt reasons: `NONE=0`, `BREAKPOINT=1`, `STEP=2`, `HALT=3`, `BREAK_STMT=4`,
 `ERROR=5`, `RESET=6`.
 Variable kinds: `INT=1`, `STR=2`, `ARR=3`, `CONST=4`.
 
+### 3.5 Response layout
+
+Every response echoes the command and puts a status in `data[0]`:
+
+| Response | Words |
+|---|---|
+| `ATTACH` | `status, mode, reason, line, pc` |
+| `DETACH` | `status` |
+| `STATE` | `status, mode, reason, line, pc` |
+| `BP_SET` | `status, actual_line` |
+| `BP_CLR` / `BP_CLR_ALL` | `status` |
+| `HALT` | `status` |
+| `CONTINUE` | `status` |
+| `STEP` / `STEP_OVER` / `STEP_OUT` | `status, mode, reason, line, pc` |
+| `VAR_INFO` | `status, kind, name_len, chars...` (one ASCII char per word) |
+| `VAR_WRITE` | `status` |
+| `ARR_READ` | `status, first, count, values...` |
+| `BACKTRACE` | `status, count, (line, pc) * count` |
+
+Events (unsolicited, sent on the debug channel):
+
+| Event | Words |
+|---|---|
+| `HALTED` | `0x80, reason, line, pc` |
+| `ENDED` | `0x81` |
+| `DETACHED` | `0x82` |
+
+`CONTINUE`/`HALT` acknowledge immediately; the subsequent stop is reported by
+a `HALTED`/`ENDED` event.
+
+The **terminal channel is bidirectional**: server -> client carries output
+bytes (section 4); client -> server carries key input bytes.
+
 ---
 
 ## 4. Terminal control protocol
