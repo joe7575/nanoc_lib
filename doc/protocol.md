@@ -242,7 +242,7 @@ Every response echoes the command and puts a status in `data[0]`:
 | `HALT` | `status` |
 | `CONTINUE` | `status` |
 | `STEP` / `STEP_OVER` / `STEP_OUT` | `status, mode, reason, line, pc` |
-| `VAR_INFO` | `status, kind, name_len, chars...` (one ASCII char per word) |
+| `VAR_INFO` | `status, kind, name_len, name_chars..., value_len, value_chars...` (one byte per word) |
 | `VAR_WRITE` | `status` |
 | `ARR_READ` | `status, first, count, values...` |
 | `BACKTRACE` | `status, count, (line, pc) * count` |
