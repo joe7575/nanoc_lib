@@ -1,0 +1,13 @@
+NanoC — licensing notice
+========================
+
+Copyright (C) 2024-2026 Joachim Stolberg
+
+The NanoC compiler/runtime/debugger contained in this repository originates
+from earlier code by the same author that was published under the MIT license
+(see the original source headers). As the sole copyright holder, the author
+relicenses that code here under the GNU Affero General Public License v3.0 or
+later.
+
+All code in this repository is distributed under AGPL-3.0-or-later unless a
+file states otherwise. See LICENSE.txt.
