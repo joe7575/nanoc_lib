@@ -292,6 +292,7 @@ several players can watch but only one debugs at a time.
   "nodes": [
     {"pos": [x, y, z], "name": "techage:ta4_chest", "description": "Chest",
      "number": "0102", "owner": "alice", "param2": 0, "state": "RUNNING",
+     "caps": [131, 192],
      "inv": {"main": [{"item": "default:stone", "count": 40}]}}
   ],
   "edges": [
@@ -310,6 +311,11 @@ Only TA4 nodes are reported (TA2 is excluded by design). `state` is one of
 (`via = "tube"`) or direct neighbours (`via = "adjacent"`). `flow` lists
 directed edges derived from pushers (`pull_dir`/`push_dir`): source ->
 pusher (`role = "pull"`) and pusher -> destination (`role = "push"`).
+
+`caps` lists the Beduino topics the node accepts (send, `< 128`) or answers
+(request, `>= 128`); the top-level `topics` object maps every topic to
+`{kind, name, note/response}` (BEP 005). External mods can extend the catalog
+via `nanoc.register_capabilities(names, topics, meta)`.
 
 ---
 
