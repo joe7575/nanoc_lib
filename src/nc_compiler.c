@@ -1163,7 +1163,8 @@ static void compile_return(void) {
 /*
 ** printf("format %d %s\n", value, string$)
 ** Format specifiers: %d (decimal), %u (unsigned decimal), %h (hex), %s (string), %% (percent)
-** Escape sequences: \a (BEL/end-of-output), \n (newline), \t (tab), \\ (backslash)
+** Escape sequences (decoded by the scanner): \a \b \e \f \n \r \t \v \\ \' \"
+** and \xHH (hex, Lua/Python style) and \ddd (decimal, Lua style). No C octal.
 */
 static void compile_printf(void) {
     uint8_t tok;
@@ -1185,11 +1186,9 @@ static void compile_printf(void) {
     fmt_buf[sizeof(fmt_buf) - 1] = '\0';
     uint16_t fmt_len = strlen(fmt_buf) + 1; // include null terminator
     
-    // Count format specifiers in format string
+    // Count format specifiers in format string (escapes already decoded)
     for(char *p = fmt_buf; *p; p++) {
-        if(*p == '\\' && *(p+1)) {
-            p++; // skip escape sequence
-        } else if(*p == '%' && *(p+1)) {
+        if(*p == '%' && *(p+1)) {
             p++; // skip to specifier
             if(*p != '%') {
                 num_args++; // only count real format specifiers

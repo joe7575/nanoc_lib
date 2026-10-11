@@ -279,9 +279,10 @@ bytes (section 4); client -> server carries key input bytes.
 
 Every control command (`STATE`, `BP_*`, `HALT`, `CONTINUE`, `STEP*`, `VAR_*`,
 `ARR_READ`, `BACKTRACE`, `PROG_SET`) from a non-owner is answered with
-`DENIED`; terminal key input from a non-owner is ignored. `PROG_GET` is allowed
-for any authenticated client. `DETACH` or disconnect releases the focus, so
-several players can watch but only one debugs at a time.
+`DENIED`. Terminal key input is **not** a control command and is accepted from
+any authenticated client (like the in-game terminal); it is rate-limited.
+`PROG_GET` is allowed for any authenticated client. `DETACH` or disconnect
+releases the focus, so several players can watch but only one debugs at a time.
 
 ### 3.7 Scan payload (TA4)
 
@@ -357,7 +358,7 @@ framing sits on top of the TLS record layer.
 | 0 | u8 | magic0 = `0x4E` (`'N'`) |
 | 1 | u8 | magic1 = `0x43` (`'C'`) |
 | 2 | u8 | protocol version |
-| 3 | u8 | channel: `1`=debug, `2`=terminal, `3`=control |
+| 3 | u8 | channel: `1`=debug, `2`=terminal, `3`=control, `4`=log |
 | 4 | u32 | session id |
 | 8 | u16 | payload length (bytes) |
 | 10 | u16 | reserved = 0 |
@@ -366,7 +367,11 @@ framing sits on top of the TLS record layer.
 
 - **control (3)**: handshake / keepalive.
 - **debug (1)**: payload = the word messages of section 3.
-- **terminal (2)**: payload = raw bytes of section 4.
+- **terminal (2)**: payload = raw bytes of the termlib terminal stream
+  (control characters, `ESC` sequences `1..7`, `@` commands).
+- **log (4)**: server -> client program log messages (NanoC built-in
+  `log()`), a raw UTF-8 string. Shown by debugger front ends (e.g. the VS Code
+  Debug Console), never mixed into the terminal screen. Rate-limited.
 
 ### 5.3 Handshake
 

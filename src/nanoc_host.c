@@ -184,15 +184,21 @@ void nc_print(const char *format, ...)
 {
 	char buf[256];
 	va_list ap;
+	int n;
 
 	va_start(ap, format);
-	vsnprintf(buf, sizeof(buf), format, ap);
+	n = vsnprintf(buf, sizeof(buf), format, ap);
 	va_end(ap);
 
+	if (n < 0)
+		return;
+	if (n > (int)sizeof(buf) - 1)
+		n = (int)sizeof(buf) - 1;
+
 	if (g_active)
-		nanoc_host_out_write(g_active, buf, strlen(buf));
+		nanoc_host_out_write(g_active, buf, (size_t)n);
 	else
-		fputs(buf, stdout);
+		fwrite(buf, 1, (size_t)n, stdout);
 }
 
 char *nc_get_code_line(void *fp, char *line, int max_line_len)

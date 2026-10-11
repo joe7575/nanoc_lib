@@ -47,6 +47,49 @@ static char Ascii[] = {
     0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x00, 0x10, 0x00, 0x00, 0x00, // 0x70 - 0x7F
 };
 
+// Decode a single escape sequence. *p points to the char after the backslash
+// and is advanced past the sequence. Returns the decoded byte.
+// Supported: \a \b \e \f \n \r \t \v \\ \' \" and \xHH (hex, Lua/Python style)
+// and \ddd (decimal, Lua style). No C-style octal sequences.
+static char nc_decode_escape(char **p) {
+    char c = **p;
+    (*p)++;
+    switch(c) {
+        case 'a': return '\a';
+        case 'b': return '\b';
+        case 'e': return 0x1B;
+        case 'f': return '\f';
+        case 'n': return '\n';
+        case 'r': return '\r';
+        case 't': return '\t';
+        case 'v': return '\v';
+        case '\\': return '\\';
+        case '\'': return '\'';
+        case '\"': return '\"';
+        case 'x': {
+            int val = 0, n = 0;
+            while(n < 2 && is_hexdigit(**p)) {
+                char h = **p;
+                val = val * 16 + (h <= '9' ? h - '0' : (h | 0x20) - 'a' + 10);
+                (*p)++;
+                n++;
+            }
+            return (char)val;
+        }
+        default:
+            if(c >= '0' && c <= '9') {
+                int val = c - '0', n = 1;
+                while(n < 3 && **p >= '0' && **p <= '9') {
+                    val = val * 10 + (**p - '0');
+                    (*p)++;
+                    n++;
+                }
+                return (char)(val & 0xFF);
+            }
+            return c; // unknown escape: keep char, drop backslash
+    }
+}
+
 char *nc_scanner(char *p_in, char *p_out) {
     char c8;
 
@@ -138,12 +181,22 @@ char *nc_scanner(char *p_in, char *p_out) {
         if(c8 == '\"') {
             *p_out++ = c8;
             p_in++;
-            while((c8 = *p_in) != '\"') {
-                *p_out++ = c8;
-                p_in++;
+            for(;;) {
+                c8 = *p_in;
+                if(c8 == '\0') {
+                    break;
+                } else if(c8 == '\"') {
+                    *p_out++ = c8;
+                    p_in++;
+                    break;
+                } else if(c8 == '\\' && p_in[1] != '\0') {
+                    p_in++;
+                    *p_out++ = nc_decode_escape(&p_in);
+                } else {
+                    *p_out++ = c8;
+                    p_in++;
+                }
             }
-            *p_out++ = c8;
-            p_in++;
             *p_out++ = '\0';
             return p_in;
         }

@@ -955,21 +955,13 @@ uint16_t nc_run(void *pv_vm, uint16_t *p_cycles) {
             }
             uint8_t arg_idx = 0;
             for(char *p = fmt; *p; p++) {
-                if(*p == '\\' && *(p+1)) {
-                    p++;
-                    switch(*p) {
-                        case 'a': nc_print("\a"); break;
-                        case 'n': nc_print("\n"); break;
-                        case 't': nc_print("\t"); break;
-                        case '\\': nc_print("\\"); break;
-                        default: nc_print("%c", *p); break;
-                    }
-                } else if(*p == '%' && *(p+1)) {
+                if(*p == '%' && *(p+1)) {
                     p++;
                     switch(*p) {
                         case 'd': nc_print("%d", (int)args[arg_idx++]); break;
                         case 'u': nc_print("%u", (unsigned)args[arg_idx++]); break;
                         case 'h': nc_print("%X", (unsigned)args[arg_idx++]); break;
+                        case 'c': nc_print("%c", (int)args[arg_idx++]); break;
                         case 's': nc_print("%s", get_string(vm, args[arg_idx++])); break;
                         case '%': nc_print("%%"); break;
                         default: nc_print("%%%c", *p); break;

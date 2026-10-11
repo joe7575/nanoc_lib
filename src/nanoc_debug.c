@@ -106,7 +106,7 @@ static uint16_t step_one(nanoc_vm_t *h)
 		saved = vm->code[pc];
 		vm->code[pc] = bp->orig_op;
 	}
-	uint16_t ret = nanoc_host_run(h, 2);
+	uint16_t ret = nanoc_host_run_lua(h, 2, NULL);
 	if (bp)
 		vm->code[pc] = saved;
 	return ret;
@@ -130,6 +130,14 @@ static int dbg_line_at(nanoc_vm_t *h, uint16_t pc)
 int nanoc_dbg_step(nanoc_vm_t *h)
 {
 	uint16_t ret = step_one(h);
+	h->dbg_mode = 2;
+	if (ret >= NB_XFUNC && ret < NB_HALTED) {
+		/* Lua-backed external function pending: hand it back to the caller
+		 * (which dispatches it and continues stepping). */
+		h->dbg_halted = 0;
+		h->dbg_reason = NANOC_RSN_STEP;
+		return (int)ret;
+	}
 	if (ret == NB_HALTED) {
 		h->dbg_halted = 1;
 		h->dbg_reason = NANOC_RSN_BREAKPOINT;
@@ -137,7 +145,6 @@ int nanoc_dbg_step(nanoc_vm_t *h)
 		h->dbg_halted = 0;
 		h->dbg_reason = NANOC_RSN_STEP;
 	}
-	h->dbg_mode = 2;
 	return h->dbg_reason;
 }
 
@@ -169,6 +176,14 @@ int nanoc_dbg_step_mode(nanoc_vm_t *h, int mode, int max_steps)
 			break;                 /* hit a breakpoint while stepping */
 	}
 
+	if (ret >= NB_XFUNC && ret < NB_HALTED) {
+		/* Lua-backed external function pending: hand it back to the caller
+		 * (which dispatches it and continues stepping). */
+		h->dbg_halted = 0;
+		h->dbg_reason = NANOC_RSN_STEP;
+		h->dbg_mode = 2;
+		return (int)ret;
+	}
 	if (ret == NB_HALTED) {
 		h->dbg_halted = 1;
 		h->dbg_reason = NANOC_RSN_BREAKPOINT;

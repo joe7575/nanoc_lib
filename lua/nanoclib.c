@@ -258,6 +258,15 @@ static int l_output_clear(lua_State *L)
 	return 0;
 }
 
+static int l_write(lua_State *L)
+{
+	nanoc_vm_t *h = check_vm(L, 1);
+	size_t n = 0;
+	const char *s = luaL_checklstring(L, 2, &n);
+	nanoc_host_out_write(h, s, n);
+	return 0;
+}
+
 static int l_push_key(lua_State *L)
 {
 	nanoc_vm_t *h = check_vm(L, 1);
@@ -708,6 +717,7 @@ static const luaL_Reg nanoc_funcs[] = {
 	{ "unpack_vm",          l_unpack_vm },
 	{ "output",             l_output },
 	{ "output_clear",       l_output_clear },
+	{ "write",              l_write },
 	{ "push_key",           l_push_key },
 	{ "pop_key",            l_pop_key },
 	{ "debug_attach",       l_debug_attach },
