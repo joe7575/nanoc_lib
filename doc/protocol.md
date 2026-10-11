@@ -199,6 +199,7 @@ message := u32 cmd, u32 data[N]
 | `0x0F` | `BACKTRACE` | |
 | `0x20` | `PROG_GET` | request the stored program source |
 | `0x21` | `PROG_SET` | `[0]`: length, `[1..]`: source bytes (UTF-8, one per word) |
+| `0x22` | `SCAN` | `[0]`: radius around the controller (default 8) |
 
 ### 3.2 Events (server -> client)
 
@@ -250,6 +251,7 @@ Every response echoes the command and puts a status in `data[0]`:
 | `BACKTRACE` | `status, count, (line, pc) * count` |
 | `PROG_GET` | `status, length, bytes...` (one byte per word) |
 | `PROG_SET` | `status` |
+| `SCAN` | `status, length, bytes...` (UTF-8 JSON, one byte per word) |
 
 Events (unsolicited, sent on the debug channel):
 
@@ -278,6 +280,30 @@ Every control command (`STATE`, `BP_*`, `HALT`, `CONTINUE`, `STEP*`, `VAR_*`,
 `DENIED`; terminal key input from a non-owner is ignored. `PROG_GET` is allowed
 for any authenticated client. `DETACH` or disconnect releases the focus, so
 several players can watch but only one debugs at a time.
+
+### 3.7 Scan payload (TA4)
+
+`SCAN` returns a JSON snapshot of the TA4 techage network around the controller
+(read-only, allowed for any authenticated client):
+
+```json
+{
+  "center": [x, y, z], "radius": 8,
+  "nodes": [
+    {"pos": [x, y, z], "name": "techage:ta4_chest", "description": "Chest",
+     "number": "0102", "owner": "alice", "param2": 0, "state": "RUNNING",
+     "inv": {"main": [{"item": "default:stone", "count": 40}]}}
+  ],
+  "edges": [
+    {"from": "0102", "to": "0110", "dir": 2, "via": "tube"}
+  ]
+}
+```
+
+Only TA4 nodes are reported (TA2 is excluded by design). `state` is one of
+`RUNNING`, `BLOCKED`, `STANDBY`, `NOPOWER`, `FAULT`, `STOPPED`, `UNLOADED`,
+`INACTIVE` (may be `null`). `edges` come from tubelib2 tube lines
+(`via = "tube"`) or direct neighbours (`via = "adjacent"`).
 
 ---
 
