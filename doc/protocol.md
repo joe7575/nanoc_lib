@@ -296,6 +296,10 @@ several players can watch but only one debugs at a time.
   ],
   "edges": [
     {"from": "0102", "to": "0110", "dir": 2, "via": "tube"}
+  ],
+  "flow": [
+    {"from": "0102", "to": "0107", "role": "pull"},
+    {"from": "0107", "to": "0110", "role": "push"}
   ]
 }
 ```
@@ -303,7 +307,9 @@ several players can watch but only one debugs at a time.
 Only TA4 nodes are reported (TA2 is excluded by design). `state` is one of
 `RUNNING`, `BLOCKED`, `STANDBY`, `NOPOWER`, `FAULT`, `STOPPED`, `UNLOADED`,
 `INACTIVE` (may be `null`). `edges` come from tubelib2 tube lines
-(`via = "tube"`) or direct neighbours (`via = "adjacent"`).
+(`via = "tube"`) or direct neighbours (`via = "adjacent"`). `flow` lists
+directed edges derived from pushers (`pull_dir`/`push_dir`): source ->
+pusher (`role = "pull"`) and pusher -> destination (`role = "push"`).
 
 ---
 
