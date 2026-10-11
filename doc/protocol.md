@@ -200,6 +200,7 @@ message := u32 cmd, u32 data[N]
 | `0x20` | `PROG_GET` | request the stored program source |
 | `0x21` | `PROG_SET` | `[0]`: length, `[1..]`: source bytes (UTF-8, one per word) |
 | `0x22` | `SCAN` | `[0]`: radius around the controller (default 8) |
+| `0x23` | `CATALOG` | Beduino topic catalog (read-only) |
 
 ### 3.2 Events (server -> client)
 
@@ -252,6 +253,7 @@ Every response echoes the command and puts a status in `data[0]`:
 | `PROG_GET` | `status, length, bytes...` (one byte per word) |
 | `PROG_SET` | `status` |
 | `SCAN` | `status, length, bytes...` (UTF-8 JSON, one byte per word) |
+| `CATALOG` | `status, length, bytes...` (UTF-8 JSON, one byte per word) |
 
 Events (unsolicited, sent on the debug channel):
 
@@ -313,9 +315,10 @@ directed edges derived from pushers (`pull_dir`/`push_dir`): source ->
 pusher (`role = "pull"`) and pusher -> destination (`role = "push"`).
 
 `caps` lists the Beduino topics the node accepts (send, `< 128`) or answers
-(request, `>= 128`); the top-level `topics` object maps every topic to
-`{kind, name, note/response}` (BEP 005). External mods can extend the catalog
-via `nanoc.register_capabilities(names, topics, meta)`.
+(request, `>= 128`). `CATALOG` returns the topic reference
+(`topics["<num>"] = {kind, name, note/response}`) and the name-pattern rules
+(BEP 005). External mods can extend the catalog via
+`nanoc.register_capabilities(names, topics, meta)`.
 
 ---
 
