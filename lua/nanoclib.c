@@ -190,9 +190,12 @@ static int l_load(lua_State *L)
 static int l_run(lua_State *L)
 {
 	nanoc_vm_t *h = check_vm(L, 1);
-	lua_Integer cycles = luaL_optinteger(L, 2, 10000);
-	lua_pushinteger(L, (lua_Integer)nanoc_host_run(h, (uint16_t)cycles));
-	return 1;
+	uint16_t cycles = (uint16_t)luaL_optinteger(L, 2, 10000);
+	uint16_t left = cycles;
+	uint16_t ret = nanoc_host_run_lua(h, cycles, &left);
+	lua_pushinteger(L, ret);
+	lua_pushinteger(L, left);
+	return 2;
 }
 
 static int l_reset(lua_State *L)
@@ -434,6 +437,70 @@ static int l_techage_read_signal(lua_State *L)
 	return 2;
 }
 
+/* ---- external function support (Lua dispatch) ---- */
+
+static int l_define_xfunc(lua_State *L)
+{
+	const char *name = luaL_checkstring(L, 1);
+	int num = (int)luaL_checkinteger(L, 2);
+	uint8_t types[8] = {0};
+	if (lua_istable(L, 3)) {
+		for (int i = 0; i < num && i < 8; i++) {
+			lua_rawgeti(L, 3, i + 1);
+			types[i] = (uint8_t)lua_tointeger(L, -1);
+			lua_pop(L, 1);
+		}
+	}
+	uint8_t ret_type = (uint8_t)luaL_optinteger(L, 4, 0);
+	uint8_t id = nanoc_host_define_xfunc(name, (uint8_t)num, types, ret_type);
+	lua_pushinteger(L, (lua_Integer)(id - NB_XFUNC));
+	return 1;
+}
+
+static int l_pop_num(lua_State *L)
+{
+	nanoc_vm_t *h = check_vm(L, 1);
+	lua_pushinteger(L, nc_pop_num(nanoc_host_vm(h)));
+	return 1;
+}
+
+static int l_push_num(lua_State *L)
+{
+	nanoc_vm_t *h = check_vm(L, 1);
+	nc_push_num(nanoc_host_vm(h), (int32_t)luaL_checkinteger(L, 2));
+	return 0;
+}
+
+static int l_peek_num(lua_State *L)
+{
+	nanoc_vm_t *h = check_vm(L, 1);
+	lua_pushinteger(L, nc_peek_num(nanoc_host_vm(h), (uint8_t)luaL_checkinteger(L, 2)));
+	return 1;
+}
+
+static int l_stack_depth(lua_State *L)
+{
+	nanoc_vm_t *h = check_vm(L, 1);
+	lua_pushinteger(L, nc_stack_depth(nanoc_host_vm(h)));
+	return 1;
+}
+
+static int l_pop_str(lua_State *L)
+{
+	nanoc_vm_t *h = check_vm(L, 1);
+	char buf[255];
+	nc_pop_str(nanoc_host_vm(h), buf, sizeof(buf));
+	lua_pushstring(L, buf);
+	return 1;
+}
+
+static int l_push_str(lua_State *L)
+{
+	nanoc_vm_t *h = check_vm(L, 1);
+	nc_push_str(nanoc_host_vm(h), (char *)luaL_checkstring(L, 2));
+	return 0;
+}
+
 /* ---- debug introspection ---- */
 
 static int line_for_pc(const nc_dbg_line_t *lt, uint16_t num, uint16_t pc)
@@ -630,6 +697,13 @@ static const luaL_Reg nanoc_funcs[] = {
 	{ "run",                l_run },
 	{ "reset",              l_reset },
 	{ "sleep_remaining",    l_sleep_remaining },
+	{ "define_xfunc",       l_define_xfunc },
+	{ "pop_num",            l_pop_num },
+	{ "push_num",           l_push_num },
+	{ "peek_num",           l_peek_num },
+	{ "pop_str",            l_pop_str },
+	{ "push_str",           l_push_str },
+	{ "stack_depth",        l_stack_depth },
 	{ "pack_vm",            l_pack_vm },
 	{ "unpack_vm",          l_unpack_vm },
 	{ "output",             l_output },
@@ -689,5 +763,7 @@ int luaopen_nanoclib(lua_State *L)
 	lua_pushinteger(L, NB_ERROR);    lua_setfield(L, -2, "ERROR");
 	lua_pushinteger(L, NB_BUSY);     lua_setfield(L, -2, "BUSY");
 	lua_pushinteger(L, NANOC_SLEEP); lua_setfield(L, -2, "SLEEP");
+	lua_pushinteger(L, NB_XFUNC);    lua_setfield(L, -2, "XFUNC");
+	lua_pushinteger(L, NB_HALTED);   lua_setfield(L, -2, "HALTED");
 	return 1;
 }

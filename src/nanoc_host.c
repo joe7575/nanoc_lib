@@ -30,6 +30,8 @@ static uint8_t g_f_ta_send, g_f_ta_send_s, g_f_ta_signal,
 	g_f_ta_recv_sig, g_f_ta_sig_port, g_f_ta_sig_val, g_f_key, g_f_sleep,
 	g_f_millis;
 
+static int g_num_builtins = 0;
+
 static int host_xfunc(void *user, uint8_t id);
 
 static void ensure_init(void)
@@ -58,6 +60,8 @@ static void ensure_init(void)
 	g_f_key         = nc_define_external_function("key", 0, t_0, NB_NUM) - NB_XFUNC;
 	g_f_sleep       = nc_define_external_function("sleep", 1, t_1n, NB_NONE) - NB_XFUNC;
 	g_f_millis      = nc_define_external_function("millis", 0, t_0, NB_NUM) - NB_XFUNC;
+
+	g_num_builtins = 13;
 
 	g_initialized = 1;
 }
@@ -389,6 +393,58 @@ uint16_t nanoc_host_run(nanoc_vm_t *h, uint16_t cycles)
 			h->dbg_halted = 1;
 			h->dbg_reason = 1;
 		}
+		return ret;
+	}
+}
+
+int nanoc_host_num_builtins(void)
+{
+	return g_num_builtins;
+}
+
+uint16_t nanoc_host_run_lua(nanoc_vm_t *h, uint16_t cycles, uint16_t *left)
+{
+	g_active = h;
+
+	if (h->sleeping) {
+		if (now_ms() < h->sleep_until_ms) {
+			if (left) *left = cycles;
+			return NANOC_SLEEP;
+		}
+		h->sleeping = 0;
+	}
+
+	for (;;) {
+		uint16_t c = cycles;
+		uint16_t ret = nc_run(h->vm, &c);
+		cycles = c;
+
+		if (ret >= NB_XFUNC && ret < NB_HALTED) {
+			uint8_t id = (uint8_t)(ret - NB_XFUNC);
+			if (id < g_num_builtins) {
+				if (h->xfunc_cb) {
+					if (h->xfunc_cb(h->xfunc_user, id) != 0) {
+						if (left) *left = cycles;
+						return NANOC_SLEEP;
+					}
+				} else {
+					nc_push_num(h->vm, 0);
+				}
+				if (cycles <= 1) {
+					if (left) *left = cycles;
+					return NB_BUSY;
+				}
+				continue;
+			}
+			/* Lua-backed external function: return to the caller */
+			if (left) *left = cycles;
+			return ret;
+		}
+		if (ret == NB_HALTED) {
+			h->dbg_halted = 1;
+			h->dbg_reason = 1;
+		}
+		if (left) *left = cycles;
 		return ret;
 	}
 }

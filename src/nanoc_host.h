@@ -122,6 +122,16 @@ void nanoc_host_destroy(nanoc_vm_t *h);
 /* ---- program ---- */
 int nanoc_host_load(nanoc_vm_t *h, const char *source);
 uint16_t nanoc_host_run(nanoc_vm_t *h, uint16_t cycles);
+
+/* Run the VM and RETURN to the caller when a Lua-backed external function
+ * (id >= nanoc_host_num_builtins()) is called, so Lua can dispatch it.
+ * *left is set to the remaining cycle budget. */
+uint16_t nanoc_host_run_lua(nanoc_vm_t *h, uint16_t cycles, uint16_t *left);
+
+/* Number of C built-in external functions (everything below this id is
+ * handled inside the engine, everything at/above is dispatched by Lua). */
+int nanoc_host_num_builtins(void);
+
 void nanoc_host_reset(nanoc_vm_t *h);
 
 void *nanoc_host_vm(nanoc_vm_t *h);
