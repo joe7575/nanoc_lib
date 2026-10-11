@@ -265,6 +265,20 @@ a `HALTED`/`ENDED` event.
 The **terminal channel is bidirectional**: server -> client carries output
 bytes (section 4); client -> server carries key input bytes.
 
+### 3.6 Focus (single debugger)
+
+`ATTACH` also claims exclusive control of the controller:
+
+- if no owner: granted (`status = OK`); the client becomes the debug owner.
+- if another client owns it: denied (`status = DENIED`); the client stays a
+  terminal viewer (it still receives output).
+
+Every control command (`STATE`, `BP_*`, `HALT`, `CONTINUE`, `STEP*`, `VAR_*`,
+`ARR_READ`, `BACKTRACE`, `PROG_SET`) from a non-owner is answered with
+`DENIED`; terminal key input from a non-owner is ignored. `PROG_GET` is allowed
+for any authenticated client. `DETACH` or disconnect releases the focus, so
+several players can watch but only one debugs at a time.
+
 ---
 
 ## 4. Terminal control protocol
