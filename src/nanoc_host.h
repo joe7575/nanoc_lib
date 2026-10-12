@@ -9,8 +9,8 @@
  *  - per-instance techage command/signal queues
  *
  * Queue directions (from the mod's point of view):
- *  - outgoing (VM -> mod): the NanoC program calls ta_send()/ta_signal();
- *    the mod drains it with nanoclib.techage_read_cmnd/write_signal.
+ *  - outgoing (VM -> mod): the NanoC program calls ta_signal();
+ *    the mod drains it with nanoclib.techage_read_signal.
  *  - incoming (mod -> VM): the mod pushes with nanoclib.techage_write_cmnd;
  *    the program polls it with ta_recv()/ta_recv_sig().
  *

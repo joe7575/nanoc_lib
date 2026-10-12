@@ -2,7 +2,7 @@
  * NanoC techage command queues (mod-side API).
  *
  *  write_cmnd/write_signal: mod -> VM (incoming, program polls with ta_recv)
- *  read_cmnd/read_signal:   VM -> mod (outgoing, program sent with ta_send)
+ *  read_signal:             VM -> mod (outgoing, program sent with ta_signal)
  *
  * AGPL-3.0-or-later
  */

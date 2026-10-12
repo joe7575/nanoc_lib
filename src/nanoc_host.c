@@ -25,7 +25,7 @@ static nanoc_vm_t *g_active = NULL;
 static int g_initialized = 0;
 
 /* ids of the built-in external functions (assigned during init) */
-static uint8_t g_f_ta_send, g_f_ta_send_s, g_f_ta_signal,
+static uint8_t g_f_ta_signal,
 	g_f_ta_recv, g_f_ta_port, g_f_ta_topic, g_f_ta_payload,
 	g_f_ta_recv_sig, g_f_ta_sig_port, g_f_ta_sig_val, g_f_key, g_f_sleep,
 	g_f_millis;
@@ -40,15 +40,14 @@ static void ensure_init(void)
 		return;
 	nc_init();
 
-	uint8_t t_num[] = { NB_NUM, NB_NUM, NB_NUM, NB_NUM, NB_NUM };
-	uint8_t t_s[]   = { NB_NUM, NB_NUM, NB_STR };
 	uint8_t t_2n[]  = { NB_NUM, NB_NUM };
 	uint8_t t_1n[]  = { NB_NUM };
 	uint8_t t_0[]   = { NB_NONE };
 
-	/* nc_define_external_function() returns NB_XFUNC + idx; store the idx */
-	g_f_ta_send     = nc_define_external_function("ta_send", 5, t_num, NB_NONE) - NB_XFUNC;
-	g_f_ta_send_s   = nc_define_external_function("ta_send_s", 3, t_s, NB_NONE) - NB_XFUNC;
+	/* nc_define_external_function() returns NB_XFUNC + idx; store the idx.
+	 * Command/request functions (ta_send_cmd / ta_req_data) are Lua-backed
+	 * (see the mod), because they call techage synchronously and return a
+	 * status/answer. */
 	g_f_ta_signal   = nc_define_external_function("ta_signal", 2, t_2n, NB_NONE) - NB_XFUNC;
 	g_f_ta_recv     = nc_define_external_function("ta_recv", 0, t_0, NB_NUM) - NB_XFUNC;
 	g_f_ta_port     = nc_define_external_function("ta_port", 0, t_0, NB_NUM) - NB_XFUNC;
@@ -61,31 +60,12 @@ static void ensure_init(void)
 	g_f_sleep       = nc_define_external_function("sleep", 1, t_1n, NB_NONE) - NB_XFUNC;
 	g_f_millis      = nc_define_external_function("millis", 0, t_0, NB_NUM) - NB_XFUNC;
 
-	g_num_builtins = 13;
+	g_num_builtins = 11;
 
 	g_initialized = 1;
 }
 
 /* ---- outgoing queue helpers ---- */
-
-static int post_out_cmnd(nanoc_vm_t *h, uint16_t port, uint16_t topic,
-		const uint16_t *words, uint16_t n, uint16_t type)
-{
-	if (n > NANOC_MAX_CMND_WORDS - 1)
-		return -1;
-	if (h->cmnd_count >= NANOC_CMND_QUEUE_LEN)
-		return -1;
-	nanoc_cmnd_t *c = &h->cmnd_q[h->cmnd_tail];
-	c->type = type ? type : 1;
-	c->port = port;
-	c->length = (uint16_t)(1 + n);
-	c->words[0] = topic;
-	if (n && words)
-		memcpy(&c->words[1], words, n * sizeof(uint16_t));
-	h->cmnd_tail = (h->cmnd_tail + 1) % NANOC_CMND_QUEUE_LEN;
-	h->cmnd_count++;
-	return 1;
-}
 
 static int post_out_signal(nanoc_vm_t *h, uint16_t port, uint16_t val)
 {
@@ -106,25 +86,7 @@ static int host_xfunc(void *user, uint8_t id)
 	nanoc_vm_t *h = user;
 	void *vm = h->vm;
 
-	if (id == g_f_ta_send) {
-		int32_t c = nc_pop_num(vm);
-		int32_t b = nc_pop_num(vm);
-		int32_t a = nc_pop_num(vm);
-		int32_t topic = nc_pop_num(vm);
-		int32_t port = nc_pop_num(vm);
-		uint16_t w[3] = { (uint16_t)a, (uint16_t)b, (uint16_t)c };
-		post_out_cmnd(h, (uint16_t)port, (uint16_t)topic, w, 3, 1);
-	} else if (id == g_f_ta_send_s) {
-		char buf[NANOC_MAX_CMND_WORDS];
-		nc_pop_str(vm, buf, sizeof(buf));
-		int32_t topic = nc_pop_num(vm);
-		int32_t port = nc_pop_num(vm);
-		uint16_t w[NANOC_MAX_CMND_WORDS];
-		uint16_t n = 0;
-		for (size_t i = 0; buf[i] && n < NANOC_MAX_CMND_WORDS - 1; i++)
-			w[n++] = (uint16_t)(unsigned char)buf[i];
-		post_out_cmnd(h, (uint16_t)port, (uint16_t)topic, w, n, 2);
-	} else if (id == g_f_ta_signal) {
+	if (id == g_f_ta_signal) {
 		int32_t val = nc_pop_num(vm);
 		int32_t port = nc_pop_num(vm);
 		post_out_signal(h, (uint16_t)port, (uint16_t)val);

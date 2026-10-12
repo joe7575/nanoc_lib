@@ -19,7 +19,7 @@ int nanoc_techage_write_cmnd(nanoc_vm_t *h, uint16_t port, uint16_t topic,
 		const uint16_t *payload, uint16_t num_words, uint16_t type);
 int nanoc_techage_write_signal(nanoc_vm_t *h, uint16_t port, uint16_t signal);
 
-/* VM -> mod (outgoing): program sent via ta_send()/ta_signal() */
+/* VM -> mod (outgoing): program sent via ta_signal() */
 int nanoc_techage_read_cmnd(nanoc_vm_t *h, uint16_t *port, uint16_t *topic,
 		uint16_t *payload, uint16_t *num_words, uint16_t *type);
 int nanoc_techage_read_signal(nanoc_vm_t *h, uint16_t *port, uint16_t *signal);

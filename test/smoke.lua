@@ -36,12 +36,10 @@ n.output_clear(pos)
 n.run(pos, 10000)
 io.write(n.output(pos))
 
--- techage outgoing (VM -> mod): program calls ta_send/ta_signal
+-- techage outgoing (VM -> mod): program calls ta_signal
 n.output_clear(pos)
-assert(n.load(pos, "ta_send(64, 7, 111, 222, 0)\nta_signal(65, 1)\n"))
+assert(n.load(pos, "ta_signal(65, 1)\n"))
 n.run(pos, 10000)
-local port, topic, payload, typ = n.techage_read_cmnd(pos)
-assert(port == 64 and topic == 7 and payload[1] == 111 and payload[2] == 222 and typ == 1)
 local p, s = n.techage_read_signal(pos)
 assert(p == 65 and s == 1)
 
