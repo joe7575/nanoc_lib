@@ -748,6 +748,10 @@ static void compile_if(void) {
         ACS16(pCi->p_code[pos]) = pCi->pc + 2;
         pos = pCi->pc;
         pCi->pc += 2;
+        if(lookahead() == IF) {  // "else if": the nested if/else forms the else branch
+            match(IF);
+            compile_if();
+        } else {
         match(LBRACE);
         compile_stmts();
         while(!BLOCKEND(lookahead())) {
@@ -755,6 +759,7 @@ static void compile_if(void) {
             compile_line();
         }
         match(RBRACE);
+        }
         ACS16(pCi->p_code[pos]) = pCi->pc;
     }
 }
@@ -1413,7 +1418,8 @@ static void compile_free(void) {
 **     1: { stmts }
 ** }
 ** Inline dispatch: executes code block based on index.
-** If expr is out of range, the dispatch is skipped.
+** Case values: numbers or constants 0..31, any order, gaps allowed.
+** If expr is out of range or a gap, the dispatch is skipped.
 */
 static void compile_dispatch(void) {
     match('(');
@@ -1428,9 +1434,9 @@ static void compile_dispatch(void) {
         tok = lookahead();
     }
 
-    if(tok == NUM) {
-        // Inline dispatch: 0: code, 1: code, ...
-        uint16_t case_addrs[32];
+    if(tok == NUM || tok == e_CNST) {
+        // Inline dispatch: the jump table is indexed by the case value
+        uint16_t case_addrs[32] = {0};  // 0 = no case (address 0 is never code)
         uint16_t goto_patches[32];
 
         pCi->p_code[pCi->pc++] = k_DISPATCH_JMP_Nx;
@@ -1439,7 +1445,8 @@ static void compile_dispatch(void) {
         uint16_t table_ref_pos = pCi->pc;
         pCi->pc += 2;  // table address placeholder
 
-        uint8_t count = 0;
+        uint8_t num_cases = 0;
+        uint8_t count = 0;  // highest case value + 1
 
         while(tok != RBRACE) {
             if(tok == 0) {
@@ -1448,17 +1455,29 @@ static void compile_dispatch(void) {
                 continue;
             }
             tok = next();
-            if(tok != NUM) {
-                error("case number expected", pCi->a_buff);
+            uint32_t value;
+            if(tok == NUM) {
+                value = pCi->value;
+            } else if(tok == e_CNST) {
+                value = a_Symbol[pCi->sym_idx].value;
+            } else {
+                error("case value expected", pCi->a_buff);
                 return;
             }
-            if(pCi->value != count) {
-                error("sequential case number expected", pCi->a_buff);
+            if(value >= 32) {
+                error("case value out of range (0..31)", pCi->a_buff);
+                return;
+            }
+            if(case_addrs[value] != 0) {
+                error("duplicate case value", pCi->a_buff);
                 return;
             }
             match(':');
 
-            case_addrs[count] = pCi->pc;
+            case_addrs[value] = pCi->pc;
+            if(value >= count) {
+                count = (uint8_t)(value + 1);
+            }
 
             tok = lookahead();
             if(tok == LBRACE) {
@@ -1475,26 +1494,23 @@ static void compile_dispatch(void) {
 
             // Emit GOTO end (to be patched)
             pCi->p_code[pCi->pc++] = k_GOTO_N3;
-            goto_patches[count] = pCi->pc;
+            goto_patches[num_cases++] = pCi->pc;
             pCi->pc += 2;
 
-            count++;
-            if(count >= 32) {
-                error("too many dispatch cases", "");
-                return;
-            }
             tok = lookahead();
         }
         match(RBRACE);
 
-        // Emit jump table after all case bodies
+        // Emit jump table after all case bodies; gaps jump to the end like out-of-range values
         uint16_t table_addr = pCi->pc;
+        uint16_t end_addr = table_addr + count * 2;
 #ifdef cfg_DEBUG_SUPPORT
         dbg_drop_lines_from(table_addr);
 #endif
         for(uint8_t i = 0; i < count; i++) {
-            pCi->p_code[pCi->pc++] = case_addrs[i] & 0xFF;
-            pCi->p_code[pCi->pc++] = (case_addrs[i] >> 8) & 0xFF;
+            uint16_t addr = case_addrs[i] != 0 ? case_addrs[i] : end_addr;
+            pCi->p_code[pCi->pc++] = addr & 0xFF;
+            pCi->p_code[pCi->pc++] = (addr >> 8) & 0xFF;
         }
 
         // Patch header
@@ -1502,8 +1518,7 @@ static void compile_dispatch(void) {
         ACS16(pCi->p_code[table_ref_pos]) = table_addr;
 
         // Patch GOTOs to end
-        uint16_t end_addr = pCi->pc;
-        for(uint8_t i = 0; i < count; i++) {
+        for(uint8_t i = 0; i < num_cases; i++) {
             ACS16(pCi->p_code[goto_patches[i]]) = end_addr;
         }
     } else {

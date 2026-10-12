@@ -793,6 +793,8 @@ uint16_t nc_run(void *pv_vm, uint16_t *p_cycles) {
         case k_FREE_N1:
             nc_print(" %u/%u/%u bytes free (code/data/heap)", cfg_MAX_CODE_SIZE - vm->code_size,
                 sizeof(vm->variables) - (vm->num_vars * sizeof(uint32_t)), nc_mem_get_free(vm));
+            pc += 1;
+            break;
         case k_RND_N1:
             tmp1 = POP();
             if(tmp1 == 0) {

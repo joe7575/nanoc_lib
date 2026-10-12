@@ -23,7 +23,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SO
 #include <stdbool.h>
 #include "nc_cfg.h"
 
-#define SVERSION "2.3.4"
+#define SVERSION "2.3.6"
 
 /*
 ** Data types for 'nc_define_external_function()'
