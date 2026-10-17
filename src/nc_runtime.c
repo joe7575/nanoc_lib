@@ -359,6 +359,17 @@ uint16_t nc_run(void *pv_vm, uint16_t *p_cycles) {
             PPUSH(tmp1);
             pc += 3; 
             RETURN_VM(NB_BREAK);
+        case k_BREAK_FOR_N3:
+            (void)POP();  // remove step value
+            (void)POP();  // remove loop end value
+            vm->nested_loop_idx--;
+            pc = ACS16(code[pc + 1]);
+            break;
+        case k_FOR_LEAVE_N2:
+            // The loop values on the stack are discarded with the stack frame
+            vm->nested_loop_idx -= code[pc + 1];
+            pc += 2;
+            break;
         case k_ADD_N1:
             tmp2 = POP();
             TOP() = TOP() + tmp2;
@@ -771,6 +782,37 @@ uint16_t nc_run(void *pv_vm, uint16_t *p_cycles) {
             memcpy(&vm->heap[tmp1 + offs1], &vm->heap[tmp2 + offs2], size);
             pc += 1;
             break;
+#ifdef cfg_STRING_SUPPORT
+        case k_STR2ARR_N1:
+            // str2arr(arr, offs, str)
+            str1 = get_string(vm, POP());
+            offs1 = POP();  // destination offset
+            tmp1 = POP() & 0x7FFF;  // destination address
+            size = strlen(str1) + 1;
+            if(size + offs1 > nc_mem_get_blocksize(vm, tmp1)) {
+                nc_print("Error: Array index out of bounds\n");
+                RETURN_VM(NB_ERROR);
+            }
+            memcpy(&vm->heap[tmp1 + offs1], str1, size);
+            pc += 1;
+            break;
+        case k_ARR2STR_N1:
+            // arr2str$(arr, offs)
+            offs1 = POP();  // source offset
+            tmp1 = POP() & 0x7FFF;  // source address
+            size1 = nc_mem_get_blocksize(vm, tmp1);
+            if(offs1 >= size1) {
+                nc_print("Error: Array index out of bounds\n");
+                RETURN_VM(NB_ERROR);
+            }
+            size = MIN(size1 - offs1, k_MAX_LINE_LEN - 1);  // no '\0' in the array: stop at its end
+            ptr = alloc_temp_string(vm, &addr);
+            strncpy(ptr, (char*)&vm->heap[tmp1 + offs1], size);
+            ptr[size] = 0;
+            PUSH(addr);
+            pc += 1;
+            break;
+#endif
 #endif
         case k_PARAM_N1:
         case k_PARAMS_N1:

@@ -772,6 +772,7 @@ int luaopen_nanoclib(lua_State *L)
 	lua_pushinteger(L, NB_END);      lua_setfield(L, -2, "END");
 	lua_pushinteger(L, NB_ERROR);    lua_setfield(L, -2, "ERROR");
 	lua_pushinteger(L, NB_BUSY);     lua_setfield(L, -2, "BUSY");
+	lua_pushinteger(L, NB_BREAK);    lua_setfield(L, -2, "BREAK");
 	lua_pushinteger(L, NANOC_SLEEP); lua_setfield(L, -2, "SLEEP");
 	lua_pushinteger(L, NB_XFUNC);    lua_setfield(L, -2, "XFUNC");
 	lua_pushinteger(L, NB_HALTED);   lua_setfield(L, -2, "HALTED");
