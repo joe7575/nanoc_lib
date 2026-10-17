@@ -14,7 +14,10 @@ are (C) Joachim Stolberg, MIT, and are relicensed here as AGPLv3:
 | `nc_memory.c` | VM memory |
 | `nc_kvstore.c/.h` | key/value store |
 
-No contents were changed during the copy.
+No contents were changed during the copy. The core is kept in sync with
+upstream NanoC (currently **2.3.9**). Local additions on top of upstream:
+compile-time string escapes (`\xHH`, `\ddd`, …; no C octal) and NUL-safe
+`nc_print` output (`printf` emits the decoded escapes).
 
 ## Fresh implementation (written, not copied)
 
@@ -28,7 +31,7 @@ fresh (the algorithms are small and portable):
 |---|---|---|
 | `nanoc_host.c/.h` | `NCSmain.c`, `NCSfunc.c`, `NCS.h`, `NCSint.h` | host hooks `nc_print` / `nc_get_code_line`, per-instance state, I/O buffers, xfunc dispatch |
 | `nanoc_debug.c/.h` | `NCSdbg.c` | software breakpoints (TRAP opcode) + single step, no ETX/MSG/SER |
-| `nanoc_techage.c/.h` | — | techage command/signal queues (model: vm2 `io_cmnd.c`) |
+| `nanoc_techage.c/.h` | — | techage signal queue (`ta_signal`) + incoming command/signal queues |
 | `../lua/nanoclib.c` | — | Lua binding (model: vm2 `vm2lua.c`) |
 
 ## Porting notes

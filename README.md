@@ -23,7 +23,8 @@ Working first cut:
   terminal output/key input, external function dispatch
 - `nanoc_debug.c` — software breakpoints, single step, PC/line (fresh rewrite,
   no ETX/MSG/SER, no HMS code)
-- `nanoc_techage.c` — in-process techage command/signal queues
+- `nanoc_techage.c` — techage signal queue (`ta_signal`) and incoming
+  command/signal queues
 - `lua/nanoclib.c` — Lua binding (see [`doc/protocol.md`](doc/protocol.md))
 
 The host/debug layer is a clean-room implementation; the original `NCS*`
@@ -41,7 +42,7 @@ Quick smoke test without installing:
 gcc -O2 -fPIC -shared -I/usr/include/lua5.1 -Isrc -o /tmp/nanoclib.so \
     src/nc_scanner.c src/nc_compiler.c src/nc_runtime.c src/nc_memory.c \
     src/nc_kvstore.c src/nanoc_debug.c src/nanoc_host.c \
-    src/nanoc_techage.c lua/nanoclib.c
+    src/nanoc_techage.c src/nanoc_net.c lua/nanoclib.c
 lua5.1 test/smoke.lua
 ```
 
