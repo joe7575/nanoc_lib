@@ -27,9 +27,6 @@ Working first cut:
   command/signal queues
 - `lua/nanoclib.c` — Lua binding (see [`doc/protocol.md`](doc/protocol.md))
 
-The host/debug layer is a clean-room implementation; the original `NCS*`
-files were intentionally not copied (see [`src/README.md`](src/README.md)).
-
 ## Build
 
 ```bash
