@@ -108,7 +108,8 @@ Available to NanoC programs (registered by the host, not via Lua):
 | `millis()` | Milliseconds since VM start/reset |
 
 The synchronous Techage command/request functions (`ta_send_cmd`,
-`ta_send_cmd_s`, `ta_req_data`, `ta_req_data_s`) are **Lua-backed** external
+`ta_send_cmd_s`, `ta_req_data`, `ta_req_data_s`, `ta_req_data_str`) are
+**Lua-backed** external
 functions registered by the mod (they call techage synchronously and return a
 status/answer).
 
