@@ -26,7 +26,7 @@ static int g_initialized = 0;
 
 /* ids of the built-in external functions (assigned during init) */
 static uint8_t g_f_ta_signal,
-	g_f_ta_recv, g_f_ta_port, g_f_ta_topic, g_f_ta_payload,
+	g_f_ta_recv,
 	g_f_ta_recv_sig, g_f_ta_sig_port, g_f_ta_sig_val, g_f_key, g_f_sleep,
 	g_f_millis;
 
@@ -42,6 +42,7 @@ static void ensure_init(void)
 
 	uint8_t t_2n[]  = { NB_NUM, NB_NUM };
 	uint8_t t_1n[]  = { NB_NUM };
+	uint8_t t_ref[] = { NB_REF };
 	uint8_t t_0[]   = { NB_NONE };
 
 	/* nc_define_external_function() returns NB_XFUNC + idx; store the idx.
@@ -49,10 +50,7 @@ static void ensure_init(void)
 	 * (see the mod), because they call techage synchronously and return a
 	 * status/answer. */
 	g_f_ta_signal   = nc_define_external_function("ta_signal", 2, t_2n, NB_NONE) - NB_XFUNC;
-	g_f_ta_recv     = nc_define_external_function("ta_recv", 0, t_0, NB_NUM) - NB_XFUNC;
-	g_f_ta_port     = nc_define_external_function("ta_port", 0, t_0, NB_NUM) - NB_XFUNC;
-	g_f_ta_topic    = nc_define_external_function("ta_topic", 0, t_0, NB_NUM) - NB_XFUNC;
-	g_f_ta_payload  = nc_define_external_function("ta_payload", 1, t_1n, NB_NUM) - NB_XFUNC;
+	g_f_ta_recv     = nc_define_external_function("ta_recv", 1, t_ref, NB_NUM) - NB_XFUNC;
 	g_f_ta_recv_sig = nc_define_external_function("ta_recv_sig", 0, t_0, NB_NUM) - NB_XFUNC;
 	g_f_ta_sig_port = nc_define_external_function("ta_sig_port", 0, t_0, NB_NUM) - NB_XFUNC;
 	g_f_ta_sig_val  = nc_define_external_function("ta_sig_val", 0, t_0, NB_NUM) - NB_XFUNC;
@@ -60,7 +58,7 @@ static void ensure_init(void)
 	g_f_sleep       = nc_define_external_function("sleep", 1, t_1n, NB_NONE) - NB_XFUNC;
 	g_f_millis      = nc_define_external_function("millis", 0, t_0, NB_NUM) - NB_XFUNC;
 
-	g_num_builtins = 11;
+	g_num_builtins = 8;
 
 	g_initialized = 1;
 }
@@ -94,10 +92,18 @@ static int host_xfunc(void *user, uint8_t id)
 		if (h->in_cmnd_count == 0) {
 			nc_push_num(vm, 0);
 		} else {
-			h->latch_cmnd = h->in_cmnd_q[h->in_cmnd_head];
-			h->latch_cmnd_valid = 1;
+			uint16_t ref = nc_pop_arr_ref(vm);
+			nanoc_cmnd_t *c = &h->in_cmnd_q[h->in_cmnd_head];
 			h->in_cmnd_head = (h->in_cmnd_head + 1) % NANOC_CMND_QUEUE_LEN;
 			h->in_cmnd_count--;
+			int32_t vals[2 + NANOC_MAX_CMND_WORDS];
+			uint16_t n = 0;
+			vals[n++] = c->port;
+			vals[n++] = (c->length > 0) ? c->words[0] : 0;
+			for (uint16_t i = 1; i < c->length && n < 2 + NANOC_MAX_CMND_WORDS; i++)
+				vals[n++] = c->words[i];
+			nc_write_arr(vm, ref, (uint8_t *)vals,
+				(uint16_t)(n * sizeof(int32_t)));
 			nc_push_num(vm, 1);
 		}
 	} else if (id == g_f_ta_recv_sig) {
@@ -110,17 +116,6 @@ static int host_xfunc(void *user, uint8_t id)
 			h->in_sig_count--;
 			nc_push_num(vm, 1);
 		}
-	} else if (id == g_f_ta_port) {
-		nc_push_num(vm, h->latch_cmnd_valid ? h->latch_cmnd.port : 0);
-	} else if (id == g_f_ta_topic) {
-		nc_push_num(vm, h->latch_cmnd_valid && h->latch_cmnd.length > 0
-			? h->latch_cmnd.words[0] : 0);
-	} else if (id == g_f_ta_payload) {
-		int32_t n = nc_pop_num(vm);   /* 0-based payload index */
-		uint16_t v = 0;
-		if (h->latch_cmnd_valid && n >= 0 && (uint16_t)(n + 1) < h->latch_cmnd.length)
-			v = h->latch_cmnd.words[n + 1];
-		nc_push_num(vm, v);
 	} else if (id == g_f_ta_sig_port) {
 		nc_push_num(vm, h->latch_sig_valid ? h->latch_sig.port : 0);
 	} else if (id == g_f_ta_sig_val) {

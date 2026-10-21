@@ -43,12 +43,12 @@ n.run(pos, 10000)
 local p, s = n.techage_read_signal(pos)
 assert(p == 65 and s == 1)
 
--- techage incoming (mod -> VM): program reads via ta_recv/ta_recv_sig
+-- techage incoming (mod -> VM): program reads via ta_recv(cmd[])
 assert(n.techage_write_cmnd(pos, 70, 9, { 5, 6 }) == 1)
 n.output_clear(pos)
-assert(n.load(pos, "int32 r = ta_recv()\nint32 pp = ta_port()\nprintf(\"%d %d\\n\", r, pp)\n"))
+assert(n.load(pos, "int32 cmd[4]\nint32 r = ta_recv(cmd)\nprintf(\"%d %d %d\\n\", r, cmd[0], cmd[1])\n"))
 n.run(pos, 10000)
-assert(n.output(pos) == "1 70\n", "incoming: " .. n.output(pos))
+assert(n.output(pos) == "1 70 9\n", "incoming: " .. n.output(pos))
 
 n.destroy(pos)
 assert(not n.is_loaded(pos))

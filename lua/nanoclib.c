@@ -510,6 +510,25 @@ static int l_push_str(lua_State *L)
 	return 0;
 }
 
+/* Pop an int32[] reference and return its elements as a Lua array (1-based). */
+static int l_pop_arr(lua_State *L)
+{
+	nanoc_vm_t *h = check_vm(L, 1);
+	void *vm = nanoc_host_vm(h);
+	uint16_t ref = nc_pop_arr_ref(vm);
+	uint8_t buf[NANOC_MAX_CMND_WORDS * sizeof(int32_t)];
+	uint16_t n = nc_read_arr(vm, ref, buf, sizeof(buf));
+	int count = (int)(n / sizeof(int32_t));
+	lua_createtable(L, count, 0);
+	for (int i = 0; i < count; i++) {
+		int32_t v;
+		memcpy(&v, buf + i * sizeof(int32_t), sizeof(int32_t));
+		lua_pushinteger(L, v);
+		lua_rawseti(L, -2, i + 1);
+	}
+	return 1;
+}
+
 /* ---- debug introspection ---- */
 
 static int line_for_pc(const nc_dbg_line_t *lt, uint16_t num, uint16_t pc)
@@ -712,6 +731,7 @@ static const luaL_Reg nanoc_funcs[] = {
 	{ "peek_num",           l_peek_num },
 	{ "pop_str",            l_pop_str },
 	{ "push_str",           l_push_str },
+	{ "pop_arr",            l_pop_arr },
 	{ "stack_depth",        l_stack_depth },
 	{ "pack_vm",            l_pack_vm },
 	{ "unpack_vm",          l_unpack_vm },
