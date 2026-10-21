@@ -37,6 +37,13 @@
 #define NANOC_SIGNAL_QUEUE_LEN 16
 #define NANOC_OUT_MAX         (32 * 1024)  /* hard cap for the terminal output buffer */
 
+/* Frozen VM image (pack_vm/unpack_vm): magic + format version + struct size.
+ * Bump NANOC_VM_FORMAT whenever the t_VM layout, the opcode encoding or the
+ * bytecode semantics change in an incompatible way. Old images are then
+ * rejected and the controller recompiles its stored program. */
+#define NANOC_VM_MAGIC        0x4E43564D  /* "NCVM" */
+#define NANOC_VM_FORMAT       2
+
 /* One techage command: [type, length, topic, payload...] */
 typedef struct {
 	uint16_t type;     /* 1 = table, 2 = string */

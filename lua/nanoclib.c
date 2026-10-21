@@ -212,6 +212,8 @@ static int l_sleep_remaining(lua_State *L)
 	return 1;
 }
 
+#define NANOC_VM_HDR 12
+
 static int l_pack_vm(lua_State *L)
 {
 	nanoc_vm_t *h = check_vm(L, 1);
@@ -220,7 +222,17 @@ static int l_pack_vm(lua_State *L)
 		lua_pushnil(L);
 		return 1;
 	}
-	lua_pushlstring(L, (const char *)vm, sizeof(t_VM));
+	uint8_t hdr[NANOC_VM_HDR] = {0};
+	uint16_t fmt = NANOC_VM_FORMAT;
+	uint32_t sz = (uint32_t)sizeof(t_VM);
+	hdr[0] = 'N'; hdr[1] = 'C'; hdr[2] = 'V'; hdr[3] = 'M';
+	memcpy(hdr + 4, &fmt, 2);
+	memcpy(hdr + 6, &sz, 4);
+	luaL_Buffer b;
+	luaL_buffinit(L, &b);
+	luaL_addlstring(&b, (const char *)hdr, NANOC_VM_HDR);
+	luaL_addlstring(&b, (const char *)vm, sizeof(t_VM));
+	luaL_pushresult(&b);
 	return 1;
 }
 
@@ -230,11 +242,20 @@ static int l_unpack_vm(lua_State *L)
 	size_t len = 0;
 	const char *s = luaL_checklstring(L, 2, &len);
 	t_VM *vm = (t_VM *)nanoc_host_vm(h);
-	if (!vm || len != sizeof(t_VM)) {
+	if (!vm || len != NANOC_VM_HDR + sizeof(t_VM) ||
+			memcmp(s, "NCVM", 4) != 0) {
 		lua_pushboolean(L, 0);
 		return 1;
 	}
-	memcpy(vm, s, sizeof(t_VM));
+	uint16_t fmt;
+	uint32_t sz;
+	memcpy(&fmt, s + 4, 2);
+	memcpy(&sz, s + 6, 4);
+	if (fmt != NANOC_VM_FORMAT || sz != (uint32_t)sizeof(t_VM)) {
+		lua_pushboolean(L, 0);
+		return 1;
+	}
+	memcpy(vm, s + NANOC_VM_HDR, sizeof(t_VM));
 	h->sleeping = 0;
 	lua_pushboolean(L, 1);
 	return 1;
