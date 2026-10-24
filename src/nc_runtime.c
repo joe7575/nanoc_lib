@@ -63,6 +63,9 @@ void nc_reset(void *pv_vm) {
     vm->pc = 1;
     vm->sp = 0;
     vm->psp = 0;
+    vm->fp = 0;
+    vm->ret_val = 0;
+    vm->nested_loop_idx = 0;
     memset(vm->variables, 0, sizeof(vm->variables));
     memset(vm->stack, 0, sizeof(vm->stack));
     memset(vm->paramstack, 0, sizeof(vm->paramstack));

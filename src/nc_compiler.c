@@ -833,6 +833,7 @@ static void compile_if(void) {
 
 static void compile_func_call(uint16_t idx, bool want_value) {
     uint16_t addr = a_Symbol[idx].value;
+    bool defined = (a_Symbol[idx].type == LABEL);
     uint8_t param_count = 0;
     uint8_t next_tok;
 
@@ -856,8 +857,10 @@ static void compile_func_call(uint16_t idx, bool want_value) {
     }
 
     // Only genuinely forward calls need the (limited) patch list.
-    if(addr == 0) {
+    // A not-yet-defined function has type ID and a variable index in value.
+    if(!defined) {
         forward_declaration(idx, pCi->pc + 1);
+        addr = 0;
     }
     pCi->p_code[pCi->pc++] = k_GOSUB_N3;
     pCi->p_code[pCi->pc++] = addr & 0xFF;

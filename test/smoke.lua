@@ -123,6 +123,53 @@ n.run(pos, 10000)
 assert(n.output(pos) == "40\n", "many calls: " .. n.output(pos))
 
 
+-- statement call to a function defined later (forward reference)
+n.output_clear(pos)
+assert(n.load(pos,
+    "int32 v = 5\n" ..
+    "doit(v)\n" ..
+    "func doit(int32 x) {\n" ..
+    "    printf(\"fwd %d\\n\", x)\n" ..
+    "}\n"), "compile failed: " .. n.output(pos))
+n.run(pos, 10000)
+assert(n.output(pos) == "fwd 5\n", "forward call: " .. n.output(pos))
+
+-- reset must clear the nested for-loop counter
+n.output_clear(pos)
+assert(n.load(pos,
+    "int32 z = 0\n" ..
+    "for i = 1 to 2 {\n" ..
+    "    for j = 1 to 2 {\n" ..
+    "        for k = 1 to 2 {\n" ..
+    "            for l = 1 to 2 {\n" ..
+    "                z = z + 1\n" ..
+    "            }\n" ..
+    "        }\n" ..
+    "    }\n" ..
+    "}\n"), "compile failed: " .. n.output(pos))
+n.debug_attach(pos, 1, 0)
+n.set_breakpoint(pos, 6)
+assert(n.run(pos, 10000) == 256)          -- halted inside four loops
+n.reset(pos)
+n.output_clear(pos)
+assert(n.load(pos,
+    "int32 a = 0\n" ..
+    "for i = 1 to 1 {\n" ..
+    "    for j = 1 to 1 {\n" ..
+    "        for k = 1 to 1 {\n" ..
+    "            for l = 1 to 1 {\n" ..
+    "                for m = 1 to 1 {\n" ..
+    "                    a = a + 1\n" ..
+    "                }\n" ..
+    "            }\n" ..
+    "        }\n" ..
+    "    }\n" ..
+    "}\n" ..
+    "printf(\"%d\\n\", a)\n"), "compile failed: " .. n.output(pos))
+n.run(pos, 10000)
+assert(n.output(pos) == "1\n", "for reset: " .. n.output(pos))
+
+
 n.destroy(pos)
 assert(not n.is_loaded(pos))
 print("smoke test OK")
