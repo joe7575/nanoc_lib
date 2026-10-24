@@ -30,8 +30,16 @@ Working first cut:
 ## Build
 
 ```bash
+# plain TCP bridge (no external build dependencies)
 luarocks make --lua-version 5.1
+
+# with TLS for the external client bridge (needs libssl-dev/openssl-devel)
+luarocks make tls/nanoc-0.1.0-2.rockspec --lua-version 5.1
 ```
+
+The TLS build enables `NANOC_TLS` and links `ssl`/`crypto`. If OpenSSL is in a
+non-standard location, pass `OPENSSL_DIR=/path` (or `OPENSSL_INCDIR` and
+`OPENSSL_LIBDIR`) to `luarocks`.
 
 Quick smoke test without installing:
 
