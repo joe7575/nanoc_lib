@@ -27,7 +27,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SO
 #define cfg_DEBUG_SUPPORT      // source level debugger: line/locals tables, k_DBG_TRAP_N1 (NB_HALTED)
 
 #define cfg_MAX_FOR_LOOPS       (4)   // max nested FOR loops
-#define cfg_STACK_SIZE          (32)  // must be power of 2 (for fast modulo via bitmask)
+#define cfg_STACK_SIZE          (128) // must be power of 2 (for fast modulo via bitmask)
 #define cfg_PARAMSTACK_SIZE     (16)  // must be power of 2 (for fast modulo via bitmask)
 #define cfg_NUM_VARS            (192) // must be in the range 8..256 (U8 index); incl. const values (e.g. injected SYS_*)
 #define cfg_MAX_NUM_DATA        (200) // max number of constants (DATA section)
