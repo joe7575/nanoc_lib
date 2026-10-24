@@ -117,6 +117,7 @@ static void compile_if(void);
 static void compile_func(void);
 static void compile_return(void);
 static void compile_var(uint8_t type);
+static void compile_func_call(uint16_t idx, bool want_value);
 static void compile_str8_var(void);
 static void compile_int32_decl(void);
 static void compile_arr_access(void);
@@ -717,6 +718,13 @@ static void compile_for(void) {
         pCi->p_code[pCi->pc++] = 1;
     }
 
+    // Skip the body when the range is empty (start > end for positive step,
+    // start < end for negative step).
+    uint16_t check_pos = pCi->pc;
+    pCi->p_code[pCi->pc++] = is_local ? k_FOR_CHECK_LOCAL_N4 : k_FOR_CHECK_N4;
+    pCi->p_code[pCi->pc++] = 0;
+    pCi->p_code[pCi->pc++] = 0;
+    pCi->p_code[pCi->pc++] = a_Symbol[idx].value;
     pc = pCi->pc;
     
     // C-style: for i = 1 to 10 { ... }
@@ -738,6 +746,7 @@ static void compile_for(void) {
     pCi->p_code[pCi->pc++] = pc & 0xFF;
     pCi->p_code[pCi->pc++] = (pc >> 8) & 0xFF;
     pCi->p_code[pCi->pc++] = a_Symbol[idx].value;
+    ACS16(pCi->p_code[check_pos + 1]) = pCi->pc;
     patch_breaks(first_break);
 }
 
@@ -822,6 +831,42 @@ static void compile_if(void) {
     }
 }
 
+static void compile_func_call(uint16_t idx, bool want_value) {
+    uint16_t addr = a_Symbol[idx].value;
+    uint8_t param_count = 0;
+    uint8_t next_tok;
+
+    match('(');
+    next_tok = lookahead();
+    while(next_tok != ')') {
+        compile_expression(e_ANY);  // Accept any type (e_NUM, e_STR, e_REF)
+        pCi->p_code[pCi->pc++] = k_PUSH_PARAM_N1;
+        param_count++;
+        next_tok = lookahead();
+        if(next_tok == ',') {
+            match(',');
+            next_tok = lookahead();
+        }
+    }
+    match(')');
+
+    // Check parameter count
+    if(a_Symbol[idx].param_count != 0xFF && param_count != a_Symbol[idx].param_count) {
+        error("wrong number of arguments", a_Symbol[idx].name);
+    }
+
+    // Only genuinely forward calls need the (limited) patch list.
+    if(addr == 0) {
+        forward_declaration(idx, pCi->pc + 1);
+    }
+    pCi->p_code[pCi->pc++] = k_GOSUB_N3;
+    pCi->p_code[pCi->pc++] = addr & 0xFF;
+    pCi->p_code[pCi->pc++] = (addr >> 8) & 0xFF;
+    if(want_value) {
+        pCi->p_code[pCi->pc++] = k_PUSH_RET_N1;
+    }
+}
+
 static void compile_var(uint8_t tok) {
     uint16_t idx = pCi->sym_idx;
     type_t type;
@@ -830,34 +875,7 @@ static void compile_var(uint8_t tok) {
 
     // Check for function call: identifier followed by '('
     if(next_tok == '(') {
-        // This is a function call - compile as GOSUB with parameters
-        uint16_t addr = a_Symbol[idx].value;
-        uint8_t param_count = 0;
-        
-        match('(');
-        next_tok = lookahead();
-        while(next_tok != ')') {
-            compile_expression(e_ANY);  // Accept any type (e_NUM, e_STR, e_REF)
-            pCi->p_code[pCi->pc++] = k_PUSH_PARAM_N1;
-            param_count++;
-            next_tok = lookahead();
-            if(next_tok == ',') {
-                match(',');
-                next_tok = lookahead();
-            }
-        }
-        match(')');
-
-        // Check parameter count
-        if(a_Symbol[idx].param_count != 0xFF && param_count != a_Symbol[idx].param_count) {
-            error("wrong number of arguments", a_Symbol[idx].name);
-        }
-        
-        // Generate GOSUB to function
-        forward_declaration(idx, pCi->pc + 1);
-        pCi->p_code[pCi->pc++] = k_GOSUB_N3;
-        pCi->p_code[pCi->pc++] = addr & 0xFF;
-        pCi->p_code[pCi->pc++] = (addr >> 8) & 0xFF;
+        compile_func_call(idx, false);
         return;
     }
 
@@ -1058,6 +1076,7 @@ static void compile_func(void) {
     uint16_t func_idx = pCi->sym_idx;
     a_Symbol[func_idx].type = LABEL;
     a_Symbol[func_idx].value = pCi->pc;
+    a_Symbol[func_idx].return_type = return_type;
     CurrVarIdx--;  // Don't count as variable
     
     // Enter function context
@@ -2187,8 +2206,20 @@ static type_t compile_factor(void) {
         }
         type = e_NUM;
         break;
-    case ID: // variable, like var1
+    case ID: // variable or function call
         match(ID);
+        if(lookahead() == '(') {
+            uint16_t fidx = pCi->sym_idx;
+            uint8_t rt = a_Symbol[fidx].return_type;
+            if(rt == 0) {
+                error("function without return value (define it before use)",
+                    a_Symbol[fidx].name);
+                break;
+            }
+            compile_func_call(fidx, true);
+            type = (rt == NC_INT32) ? e_NUM : e_STR;
+            break;
+        }
         if(a_Symbol[pCi->sym_idx].is_local) {
             pCi->p_code[pCi->pc++] = k_PUSH_LOCAL_N2;
         } else {

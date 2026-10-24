@@ -127,6 +127,8 @@ enum {
     k_FOR_LEAVE_N2,          // (number of for-loops) - 'return' from inside for-loops
     k_STR2ARR_N1,            // str2arr(arr, offs, str) - copy string incl. '\0' into array
     k_ARR2STR_N1,            // arr2str$(arr, offs) - read '\0'-terminated string from array
+    k_FOR_CHECK_N4,          // skip empty for-loop: (target), (global var)
+    k_FOR_CHECK_LOCAL_N4,    // skip empty for-loop: (target), (local var)
 };
 
 // Token types
@@ -172,6 +174,7 @@ typedef struct {
     uint8_t  type;        // Token type
     uint8_t  is_local;    // 1 if local variable in void function
     uint8_t  param_count; // Number of parameters for LABEL (func), 0xFF = unknown
+    uint8_t  return_type; // LABEL (func): 0 = void, NC_INT32 or STR8
     uint32_t value;       // Variable index (0..n) or label address, for locals: stack offset
 } sym_t;
 

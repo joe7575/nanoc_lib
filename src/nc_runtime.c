@@ -207,6 +207,7 @@ void nc_set_pc(void * pv_vm, uint16_t addr) {
 */
 uint16_t nc_run(void *pv_vm, uint16_t *p_cycles) {
     int32_t tmp1, tmp2;
+    int32_t loopval;
     uint16_t idx;
     uint16_t addr, size;
     uint16_t offs1;
@@ -495,6 +496,28 @@ uint16_t nc_run(void *pv_vm, uint16_t *p_cycles) {
             fp = POP();          // restore old frame pointer
             pc = (uint16_t)POP();  // return address
             RETURN_VM(NB_RETI);
+        case k_FOR_CHECK_N4:
+        case k_FOR_CHECK_LOCAL_N4:
+            // Skip the loop body when the range is empty.
+            // Stack: [end, step] with step on top.
+            tmp2 = ACS16(code[pc + 1]);   // target (after k_NEXT)
+            var = code[pc + 3];
+            if(code[pc] == k_FOR_CHECK_LOCAL_N4) {
+                loopval = vm->stack[fp + var];
+            } else {
+                loopval = vm->variables[var];
+            }
+            tmp1 = TOP();                 // step
+            if((tmp1 > 0 && loopval > PEEK(-2)) ||
+                    (tmp1 < 0 && loopval < PEEK(-2))) {
+                (void)POP();              // step
+                (void)POP();              // end
+                vm->nested_loop_idx--;
+                pc = tmp2;
+            } else {
+                pc += 4;
+            }
+            break;
         case k_FOR_N1:
             if(++vm->nested_loop_idx > cfg_MAX_FOR_LOOPS) {
                 nc_print("Error: too many nested 'for' loops");

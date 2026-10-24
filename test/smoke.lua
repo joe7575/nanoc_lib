@@ -50,6 +50,79 @@ assert(n.load(pos, "int32 cmd[4]\nint32 r = ta_recv(cmd)\nprintf(\"%d %d %d\\n\"
 n.run(pos, 10000)
 assert(n.output(pos) == "1 70 9\n", "incoming: " .. n.output(pos))
 
+-- for loops: empty ranges must not run the body
+n.output_clear(pos)
+local forsrc = "int32 i = 0\n" ..
+    "int32 a = 0\n" ..
+    "int32 b = 0\n" ..
+    "int32 c = 0\n" ..
+    "for i = 1 to 0 {\n" ..
+    "    a = a + 1\n" ..
+    "}\n" ..
+    "for i = 1 to 3 {\n" ..
+    "    b = b + i\n" ..
+    "}\n" ..
+    "for i = 3 to 1 step -1 {\n" ..
+    "    c = c + i\n" ..
+    "}\n" ..
+    "printf(\"%d %d %d\\n\", a, b, c)\n"
+assert(n.load(pos, forsrc), "compile failed: " .. n.output(pos))
+n.run(pos, 10000)
+assert(n.output(pos) == "0 6 6\n", "for loops: " .. n.output(pos))
+
+-- empty for-loop with a function-local loop variable
+n.output_clear(pos)
+assert(n.load(pos,
+    "func int32 g() {\n" ..
+    "    int32 s = 0\n" ..
+    "    for i = 1 to 0 {\n" ..
+    "        s = s + 1\n" ..
+    "    }\n" ..
+    "    return s\n" ..
+    "}\n" ..
+    "printf(\"%d\\n\", g())\n"), "compile failed: " .. n.output(pos))
+n.run(pos, 10000)
+assert(n.output(pos) == "0\n", "local for: " .. n.output(pos))
+
+-- user function calls in expressions (including recursion)
+n.output_clear(pos)
+assert(n.load(pos,
+    "func int32 add(int32 a, int32 b) {\n" ..
+    "    return a + b\n" ..
+    "}\n" ..
+    "func int32 fib(int32 n) {\n" ..
+    "    if (n <= 1) {\n" ..
+    "        return n\n" ..
+    "    }\n" ..
+    "    return fib(n - 1) + fib(n - 2)\n" ..
+    "}\n" ..
+    "int32 r = add(2, 3)\n" ..
+    "printf(\"%d %d\\n\", r + add(1, 1), fib(6))\n"), "compile failed: " .. n.output(pos))
+n.run(pos, 10000)
+assert(n.output(pos) == "7 8\n", "expr calls: " .. n.output(pos))
+
+-- string return value used in an expression
+n.output_clear(pos)
+assert(n.load(pos,
+    "func str8 greeting() {\n" ..
+    "    return \"hi\"\n" ..
+    "}\n" ..
+    "printf(\"%s\\n\", greeting())\n"), "compile failed: " .. n.output(pos))
+n.run(pos, 10000)
+assert(n.output(pos) == "hi\n", "str return: " .. n.output(pos))
+
+-- calls to an already defined function do not consume forward declarations
+n.output_clear(pos)
+local callsrc = "func int32 f(int32 x) {\n    return x + 1\n}\nint32 y = 0\n"
+for i = 1, 40 do
+    callsrc = callsrc .. "y = f(y)\n"
+end
+callsrc = callsrc .. "printf(\"%d\\n\", y)\n"
+assert(n.load(pos, callsrc), "compile failed: " .. n.output(pos))
+n.run(pos, 10000)
+assert(n.output(pos) == "40\n", "many calls: " .. n.output(pos))
+
+
 n.destroy(pos)
 assert(not n.is_loaded(pos))
 print("smoke test OK")

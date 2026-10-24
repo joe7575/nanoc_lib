@@ -24,7 +24,7 @@
 #include <stddef.h>
 #include "nc.h"
 
-#define NANOC_VERSION        "0.2.1"
+#define NANOC_VERSION        "0.2.2"
 #define NANOC_PROTOCOL       1
 
 /* Extra return value of nanoc_host_run(): the program called sleep() and is
