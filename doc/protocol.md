@@ -1,6 +1,7 @@
 # NanoC protocol specification
 
-Version: **1** (`NANOC_PROTOCOL = 1`)
+Wire protocol: **2** (`NANOC_WIRE_PROTOCOL = 2`)
+Lua/C module API: **1** (`NANOC_PROTOCOL = 1`)
 
 This document is the contract between `nanoc_lib`, `nanoc_mod` and
 `nanoc_client`. It is owned by `nanoc_lib`; the other two pin a protocol
@@ -32,7 +33,7 @@ check `nanoclib.protocol()` and `nanoclib.version()` before use.
 | Function | Return | Description |
 |---|---|---|
 | `version()` | string | Library semver (e.g. `"0.1.0"`) |
-| `protocol()` | integer | Wire/API protocol version (`1`) |
+| `protocol()` | integer | Lua/C module API version (`1`) |
 | `hash_node_position(pos)` | string(9) | Position hash |
 | `get_position_from_hash(hash)` | `{x,y,z}` | Inverse of the above |
 
@@ -364,8 +365,7 @@ framing sits on top of the TLS record layer.
 | 2 | u8 | protocol version |
 | 3 | u8 | channel: `1`=debug, `2`=terminal, `3`=control, `4`=log |
 | 4 | u32 | session id |
-| 8 | u16 | payload length (bytes) |
-| 10 | u16 | reserved = 0 |
+| 8 | u32 | payload length (bytes) |
 
 ### 5.2 Channels
 
