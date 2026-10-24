@@ -659,7 +659,17 @@ static void compile_stmt(void) {
     case NC_CONST: compile_const(); break;
     case WHILE: compile_while(); break;
     case END: compile_end(); break;
-    case XFUNC: compile_xfunc(e_NONE); break;
+    case XFUNC: {
+        // Statement-level xfunc call: a value-returning function leaves its
+        // result on the stack, so discard it.
+        uint16_t xidx = sym_get(pCi->a_buff);
+        uint8_t rt = (xidx < NumXFuncs) ? a_XFuncs[xidx].return_type : NB_NONE;
+        compile_xfunc(rt == NB_NONE ? e_NONE : e_ANY);
+        if(rt != NB_NONE) {
+            pCi->p_code[pCi->pc++] = k_POP_N1;
+        }
+        break;
+    }
     case BREAK: compile_break(); break;
     case BREAKPOINT: compile_breakpoint(); break;
     case RETI: compile_reti(); break;

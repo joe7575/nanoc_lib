@@ -316,6 +316,13 @@ uint16_t nc_run(void *pv_vm, uint16_t *p_cycles) {
             vm->stack[fp + var] = POP();
             pc += 2;
             break;
+        case k_POP_N1:
+            // discard a value (e.g. the result of a statement-level xfunc call)
+            if(sp > 0) {
+                (void)POP();
+            }
+            pc += 1;
+            break;
         case k_INC_LOCAL_N2:
             var = code[pc + 1];
             vm->stack[fp + var]++;

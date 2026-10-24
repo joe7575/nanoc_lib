@@ -24,7 +24,7 @@
 #include <stddef.h>
 #include "nc.h"
 
-#define NANOC_VERSION        "0.2.4"
+#define NANOC_VERSION        "0.2.5"
 #define NANOC_PROTOCOL       1
 
 /* Extra return value of nanoc_host_run(): the program called sleep() and is
@@ -42,7 +42,7 @@
  * bytecode semantics change in an incompatible way. Old images are then
  * rejected and the controller recompiles its stored program. */
 #define NANOC_VM_MAGIC        0x4E43564D  /* "NCVM" */
-#define NANOC_VM_FORMAT       3
+#define NANOC_VM_FORMAT       4
 
 /* One techage command: [type, length, topic, payload...] */
 typedef struct {

@@ -43,6 +43,12 @@ n.run(pos, 10000)
 local p, s = n.techage_read_signal(pos)
 assert(p == 65 and s == 1)
 
+-- statement-level call of a value-returning xfunc (result is discarded)
+n.output_clear(pos)
+assert(n.load(pos, "int32 a = 7\nmillis()\na = a + 1\nprintf(\"%d\\n\", a)\n"))
+assert(n.run(pos, 10000) == 0, "bare xfunc did not finish")
+assert(n.output(pos) == "8\n", "bare xfunc: " .. n.output(pos))
+
 -- techage incoming (mod -> VM): program reads via ta_recv(cmd[])
 assert(n.techage_write_cmnd(pos, 70, 9, { 5, 6 }) == 1)
 n.output_clear(pos)

@@ -129,6 +129,7 @@ enum {
     k_ARR2STR_N1,            // arr2str$(arr, offs) - read '\0'-terminated string from array
     k_FOR_CHECK_N4,          // skip empty for-loop: (target), (global var)
     k_FOR_CHECK_LOCAL_N4,    // skip empty for-loop: (target), (local var)
+    k_POP_N1,                // discard one stack value (statement-level xfunc result)
 };
 
 // Token types
