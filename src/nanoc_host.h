@@ -42,7 +42,7 @@
  * bytecode semantics change in an incompatible way. Old images are then
  * rejected and the controller recompiles its stored program. */
 #define NANOC_VM_MAGIC        0x4E43564D  /* "NCVM" */
-#define NANOC_VM_FORMAT       2
+#define NANOC_VM_FORMAT       3
 
 /* One techage command: [type, length, topic, payload...] */
 typedef struct {
