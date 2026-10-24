@@ -691,6 +691,28 @@ static int l_net_accept(lua_State *L)
 	return 1;
 }
 
+static int l_net_tls_available(lua_State *L)
+{
+	lua_pushboolean(L, nanoc_net_tls_available());
+	return 1;
+}
+
+static int l_net_tls_accept(lua_State *L)
+{
+	int id = (int)luaL_checkinteger(L, 1);
+	const char *cert = luaL_checkstring(L, 2);
+	const char *key = luaL_checkstring(L, 3);
+	const char *ca = lua_isnoneornil(L, 4) ? NULL : luaL_checkstring(L, 4);
+	int verify = lua_toboolean(L, 5);
+	if (nanoc_net_tls_accept(id, cert, key, ca, verify) < 0) {
+		lua_pushnil(L);
+		lua_pushstring(L, nanoc_net_tls_error());
+		return 2;
+	}
+	lua_pushboolean(L, 1);
+	return 1;
+}
+
 static int l_net_recv(lua_State *L)
 {
 	char buf[4096];
@@ -779,6 +801,8 @@ static const luaL_Reg nanoc_funcs[] = {
 	{ "techage_read_signal", l_techage_read_signal },
 	{ "net_listen",         l_net_listen },
 	{ "net_accept",         l_net_accept },
+	{ "net_tls_available",  l_net_tls_available },
+	{ "net_tls_accept",     l_net_tls_accept },
 	{ "net_recv",           l_net_recv },
 	{ "net_send",           l_net_send },
 	{ "net_flush",          l_net_flush },

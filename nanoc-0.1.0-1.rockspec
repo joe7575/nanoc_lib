@@ -19,11 +19,25 @@ dependencies = {
    "lua == 5.1"
 }
 
+-- Optional TLS for the external client bridge:
+--   NANOC_TLS=1 sudo -E luarocks make --lua-version 5.1
+-- Requires OpenSSL headers and libraries (libssl-dev / openssl-devel).
+local tls = os.getenv("NANOC_TLS")
+local with_tls = tls ~= nil and tls ~= "" and tls ~= "0"
+	and tls ~= "false" and tls ~= "off"
+local defines, libraries = {}, {}
+if with_tls then
+	defines = { "NANOC_TLS" }
+	libraries = { "ssl", "crypto" }
+end
+
 build = {
     type = "builtin",
     modules = {
         nanoclib = {
             incdirs = { "./src" },
+            defines = defines,
+            libraries = libraries,
             sources = {
                 "./src/nc_scanner.c",
                 "./src/nc_compiler.c",
