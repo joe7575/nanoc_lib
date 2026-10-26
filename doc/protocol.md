@@ -205,6 +205,7 @@ message := u32 cmd, u32 data[N]
 | `0x21` | `PROG_SET` | `[0]`: length, `[1..]`: source bytes (UTF-8, one per word) |
 | `0x22` | `SCAN` | `[0]`: radius around the controller (default 8) |
 | `0x23` | `CATALOG` | Beduino topic catalog (read-only) |
+| `0x24` | `INFO` | controller info (read-only, no attach required) |
 
 ### 3.2 Events (server -> client)
 
@@ -259,6 +260,7 @@ Every response echoes the command and puts a status in `data[0]`:
 | `PROG_SET` | `status` |
 | `SCAN` | `status, length, bytes...` (UTF-8 JSON, one byte per word) |
 | `CATALOG` | `status, length, bytes...` (UTF-8 JSON, one byte per word) |
+| `INFO` | `status, length, bytes...` (UTF-8 JSON, one byte per word) |
 
 Events (unsolicited, sent on the debug channel):
 
@@ -389,7 +391,11 @@ framing sits on top of the TLS record layer.
    `NOT_LOADED` means the controller's mapblock is currently not loaded (no
    player nearby / no forceload), so debugging/starting is refused. Control
    commands (except `DETACH`/`CATALOG`) also answer `NOT_LOADED` if the area
-   becomes inactive during a session.
+   becomes inactive during a session. `INFO` is read-only, needs no attach
+   focus and returns:
+   `{"available": true, "number": 42, "pos": {"x": 10, "y": 20,
+   "z": 30}, "name": "demo", "owner": "player", "running": true,
+   "paused": false, "program": true, "protocol": 2, "nanoclib": "0.2.6"}`.
 5. Debug/terminal frames may flow. The client must not send debug frames
    before a successful `HELLO_ACK`.
 
