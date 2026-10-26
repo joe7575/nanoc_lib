@@ -49,6 +49,18 @@ assert(n.load(pos, "int32 a = 7\nmillis()\na = a + 1\nprintf(\"%d\\n\", a)\n"))
 assert(n.run(pos, 10000) == 0, "bare xfunc did not finish")
 assert(n.output(pos) == "8\n", "bare xfunc: " .. n.output(pos))
 
+-- a bare value-returning xfunc inside a function must not pop the function's
+-- locals (the result lives on the parameter stack, not the data stack)
+n.output_clear(pos)
+assert(n.load(pos,
+    "func int32 keep(int32 a) {\n" ..
+    "    millis()\n" ..
+    "    return a\n" ..
+    "}\n" ..
+    "printf(\"%d\\n\", keep(7))\n"), "compile failed: " .. n.output(pos))
+n.run(pos, 10000)
+assert(n.output(pos) == "7\n", "bare xfunc in function: " .. n.output(pos))
+
 -- techage incoming (mod -> VM): program reads via ta_recv(cmd[])
 assert(n.techage_write_cmnd(pos, 70, 9, { 5, 6 }) == 1)
 n.output_clear(pos)

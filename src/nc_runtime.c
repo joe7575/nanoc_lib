@@ -317,9 +317,10 @@ uint16_t nc_run(void *pv_vm, uint16_t *p_cycles) {
             pc += 2;
             break;
         case k_POP_N1:
-            // discard a value (e.g. the result of a statement-level xfunc call)
-            if(sp > 0) {
-                (void)POP();
+            // Discard the result of a statement-level xfunc call. The result is
+            // pushed by the host onto the parameter stack, not the data stack.
+            if(vm->psp > 0) {
+                (void)PPOP();
             }
             pc += 1;
             break;
