@@ -8,9 +8,9 @@ three NanoC repositories:
 
 | Repo | Artifact | Distribution |
 |---|---|---|
-| `nanoc_lib` (this) | `nanoclib.so` (Lua C module) | LuaRocks |
-| `nanoc_mod` | Luanti mod (pure Lua) | ContentDB / GitHub |
-| `nanoc_client` | Python client (debugger / terminal) | pip / pipx |
+| [`nanoc_lib`](https://github.com/joe7575/nanoc_lib) (this) | `nanoclib.so` (Lua C module) | LuaRocks |
+| [`nanoc_mod`](https://github.com/joe7575/nanoc_mod) | Luanti mod (pure Lua) | ContentDB / GitHub |
+| [`nanoc_client`](https://github.com/joe7575/nanoc_client) | Python client (debugger / terminal) | pip / pipx |
 
 The wire and API contract lives in [`doc/protocol.md`](doc/protocol.md).
 
