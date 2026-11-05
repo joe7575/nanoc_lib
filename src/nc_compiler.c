@@ -1088,10 +1088,14 @@ static void compile_func(void) {
     
     // Register function name as label - points to AFTER the skip GOTO
     uint16_t func_idx = pCi->sym_idx;
+    // Release the variable index taken by the name only if no variable was created since;
+    // a forward-called function got its index earlier and later variables follow it.
+    if(a_Symbol[func_idx].type == ID && a_Symbol[func_idx].value == (uint32_t)(CurrVarIdx - 1)) {
+        CurrVarIdx--;
+    }
     a_Symbol[func_idx].type = LABEL;
     a_Symbol[func_idx].value = pCi->pc;
     a_Symbol[func_idx].return_type = return_type;
-    CurrVarIdx--;  // Don't count as variable
     
     // Enter function context
     pCi->in_func = true;
@@ -2465,40 +2469,13 @@ static type_t compile_factor(void) {
         {
             match(LABEL);
             uint16_t func_sym = pCi->sym_idx;
-            uint16_t addr = a_Symbol[func_sym].value;
-            uint8_t call_param_count = 0;
-            match('(');
-            // Push arguments to parameter stack
-            tok = lookahead();
-            while(tok != ')') {
-                compile_expression(e_ANY);  // Accept any type (e_NUM, e_STR, e_REF)
-                pCi->p_code[pCi->pc++] = k_PUSH_PARAM_N1;
-                call_param_count++;
-                tok = lookahead();
-                if(tok == ',') {
-                    match(',');
-                    tok = lookahead();
-                }
-            }
-            match(')');
-            // Check parameter count
-            if(a_Symbol[func_sym].param_count != 0xFF && call_param_count != a_Symbol[func_sym].param_count) {
-                error("wrong number of arguments", a_Symbol[func_sym].name);
-            }
-            // Generate GOSUB to function
-            pCi->p_code[pCi->pc++] = k_GOSUB_N3;
-            pCi->p_code[pCi->pc++] = addr & 0xFF;
-            pCi->p_code[pCi->pc++] = (addr >> 8) & 0xFF;
-            // Push return value from ret_val register onto stack
-            pCi->p_code[pCi->pc++] = k_PUSH_RET_N1;
-            if(a_Symbol[func_sym].return_type == NC_INT32) {
-                type = e_NUM;
-            } else if(a_Symbol[func_sym].return_type == STR8) {
-                type = e_STR;
-            } else {
+            uint8_t rt = a_Symbol[func_sym].return_type;
+            if(rt == 0) {
                 error("function without return value", a_Symbol[func_sym].name);
-                type = e_NUM;
+                break;
             }
+            compile_func_call(func_sym, true);
+            type = (rt == NC_INT32) ? e_NUM : e_STR;
         }
         break;
     case XFUNC:

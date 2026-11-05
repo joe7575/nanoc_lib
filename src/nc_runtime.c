@@ -543,13 +543,14 @@ uint16_t nc_run(void *pv_vm, uint16_t *p_cycles) {
             var = code[pc + 3];
             tmp2 = TOP(); // step value
             vm->variables[var] = vm->variables[var] + tmp2;
+            // Signed compare: negative loop values must not be treated as large unsigned numbers
             if(tmp2 < 0) {
-                if(vm->variables[var] >= PEEK(-2)) {
+                if((int32_t)vm->variables[var] >= PEEK(-2)) {
                     pc = tmp1;
                     break;
                 }
             } else {
-                if(vm->variables[var] <= PEEK(-2)) {
+                if((int32_t)vm->variables[var] <= PEEK(-2)) {
                     pc = tmp1;
                     break;
                 }

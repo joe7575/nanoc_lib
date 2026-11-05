@@ -224,6 +224,33 @@ assert(n.load(pos,
     "int32 p[0]\n" ..
     "t_payload(1, 2, t_str(1))\n"), "string function payload: " .. n.output(pos))
 
+-- forward-called void function must not share its variable index with a
+-- later global variable
+n.reset(pos)
+n.output_clear(pos)
+assert(n.load(pos,
+    "fwd2()\n" ..
+    "int32 keepme = 5\n" ..
+    "func fwd2() {\n" ..
+    "}\n" ..
+    "int32 other = 7\n" ..
+    "printf(\"vars %d %d\\n\", keepme, other)\n"), "compile failed: " .. n.output(pos))
+n.run(pos, 10000)
+assert(n.output(pos) == "vars 5 7\n", "forward variable index: " .. n.output(pos))
+
+-- negative for-loop range must not end after the first pass
+n.reset(pos)
+n.output_clear(pos)
+assert(n.load(pos,
+    "int32 ni = 0\n" ..
+    "int32 ncount = 0\n" ..
+    "for ni = -3 to 1 {\n" ..
+    "    ncount = ncount + 1\n" ..
+    "}\n" ..
+    "printf(\"neg %d\\n\", ncount)\n"), "compile failed: " .. n.output(pos))
+n.run(pos, 10000)
+assert(n.output(pos) == "neg 5\n", "negative for range: " .. n.output(pos))
+
 n.destroy(pos)
 assert(not n.is_loaded(pos))
 print("smoke test OK")
