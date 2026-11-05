@@ -41,6 +41,7 @@ typedef enum type_t {
     e_REF = NB_REF,
     e_ANY = NB_ANY,
     e_CNST,
+    e_REF_STR = NB_REF_STR,
 } type_t;
 
 // Define external function
@@ -1360,6 +1361,12 @@ static type_t compile_xfunc(uint8_t type) {
         if(tok == ',') {
             match(',');
         } else if(tok == ')') {
+            // Remaining parameters are omitted; only optional ones may be defaulted.
+            for(uint8_t j = i + 1; j < a_XFuncs[idx].num_params; j++) {
+                if(a_XFuncs[idx].type[j] == NB_REF_STR) {
+                    error("array or string parameter required", NULL);
+                }
+            }
             add_default_params(a_XFuncs[idx].num_params - i - 1);
             break;
         } else {
@@ -1971,7 +1978,11 @@ static type_t compile_expression(type_t type) {
         pCi->p_code[pCi->pc++] = k_OR_N1;
         op = lookahead();
     }
-    if(type != e_ANY && type1 != type) {
+    if(type == e_REF_STR) {
+        if(type1 != e_REF && type1 != e_STR) {
+            error("array or string expected", NULL);
+        }
+    } else if(type != e_ANY && type1 != type) {
         error("type mismatch", pCi->a_buff);
     }
     return type1;
@@ -2220,27 +2231,31 @@ static type_t compile_factor(void) {
         type = e_NUM;
         break;
     case ID: // variable or function call
+    {
+        // lookahead() below may parse an identifier-like keyword (e.g. `mod`)
+        // and overwrite pCi->sym_idx; keep the variable's index.
+        uint16_t vidx = pCi->sym_idx;
         match(ID);
         if(lookahead() == '(') {
-            uint16_t fidx = pCi->sym_idx;
-            uint8_t rt = a_Symbol[fidx].return_type;
+            uint8_t rt = a_Symbol[vidx].return_type;
             if(rt == 0) {
                 error("function without return value (define it before use)",
-                    a_Symbol[fidx].name);
+                    a_Symbol[vidx].name);
                 break;
             }
-            compile_func_call(fidx, true);
+            compile_func_call(vidx, true);
             type = (rt == NC_INT32) ? e_NUM : e_STR;
             break;
         }
-        if(a_Symbol[pCi->sym_idx].is_local) {
+        if(a_Symbol[vidx].is_local) {
             pCi->p_code[pCi->pc++] = k_PUSH_LOCAL_N2;
         } else {
             pCi->p_code[pCi->pc++] = k_PUSH_VAR_N2;
         }
-        pCi->p_code[pCi->pc++] = a_Symbol[pCi->sym_idx].value;
+        pCi->p_code[pCi->pc++] = a_Symbol[vidx].value;
         type = e_NUM;
         break;
+    }
     case ARR: // array access or reference
         val = a_Symbol[pCi->sym_idx].value;
         {
@@ -2476,7 +2491,14 @@ static type_t compile_factor(void) {
             pCi->p_code[pCi->pc++] = (addr >> 8) & 0xFF;
             // Push return value from ret_val register onto stack
             pCi->p_code[pCi->pc++] = k_PUSH_RET_N1;
-            type = e_NUM;
+            if(a_Symbol[func_sym].return_type == NC_INT32) {
+                type = e_NUM;
+            } else if(a_Symbol[func_sym].return_type == STR8) {
+                type = e_STR;
+            } else {
+                error("function without return value", a_Symbol[func_sym].name);
+                type = e_NUM;
+            }
         }
         break;
     case XFUNC:

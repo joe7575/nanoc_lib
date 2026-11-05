@@ -16,6 +16,7 @@ assert(n.get_position_from_hash(n.hash_node_position(pos)).x == 1)
 
 assert(n.create(pos))
 assert(n.is_loaded(pos))
+n.define_xfunc("t_payload", 3, {1, 1, 6}, 0)
 
 -- Note: NanoC is C-like; declarations with initializer ("int32 a = 3").
 local src = "int32 a = 3\n" ..
@@ -187,6 +188,41 @@ assert(n.load(pos,
 n.run(pos, 10000)
 assert(n.output(pos) == "1\n", "for reset: " .. n.output(pos))
 
+
+-- mod with a variable operand after an array declaration (lookahead must not
+-- replace the variable symbol with the `mod` keyword symbol)
+n.output_clear(pos)
+assert(n.load(pos,
+    "int32 mp[1]\n" ..
+    "int32 mi = 2\n" ..
+    "printf(\"%d %d\\n\", mi mod 3, mi % 3)\n"), "compile failed: " .. n.output(pos))
+n.run(pos, 10000)
+assert(n.output(pos) == "2 2\n", "mod variable: " .. n.output(pos))
+
+-- NB_REF_STR xfunc parameters: scalar is rejected, array reference is allowed
+n.output_clear(pos)
+assert(not n.load(pos, "int32 p[0]\nt_payload(1, 2, 3)\n"))
+assert(n.output(pos):find("array or string expected", 1, true),
+    "scalar payload accepted: " .. n.output(pos))
+n.reset(pos)
+n.output_clear(pos)
+assert(not n.load(pos, "int32 p[0]\nt_payload(1, 2)\n"))
+assert(n.output(pos):find("array or string parameter required", 1, true),
+    "missing payload accepted: " .. n.output(pos))
+n.reset(pos)
+n.output_clear(pos)
+assert(n.load(pos, "int32 p[0]\nt_payload(1, 2, p)\n"),
+    "array payload rejected: " .. n.output(pos))
+
+-- A string-returning user function must be typed e_STR, also as xfunc payload
+n.reset(pos)
+n.output_clear(pos)
+assert(n.load(pos,
+    "func str8 t_str(int32 a) {\n" ..
+    "    return \"x\"\n" ..
+    "}\n" ..
+    "int32 p[0]\n" ..
+    "t_payload(1, 2, t_str(1))\n"), "string function payload: " .. n.output(pos))
 
 n.destroy(pos)
 assert(not n.is_loaded(pos))

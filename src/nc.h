@@ -23,7 +23,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SO
 #include <stdbool.h>
 #include "nc_cfg.h"
 
-#define SVERSION "2.3.13"
+#define SVERSION "2.3.14"
 
 /*
 ** Data types for 'nc_define_external_function()'
@@ -34,6 +34,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SO
 #define NB_ARR      (3)
 #define NB_ANY      (4)
 #define NB_REF      (5)
+#define NB_REF_STR  (6)
 
 /*
 ** Return values of 'nc_run()'
