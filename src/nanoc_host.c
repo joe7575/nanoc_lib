@@ -312,6 +312,9 @@ int nanoc_host_load(nanoc_vm_t *h, const char *source)
 		h->bps[i].used = 0;
 
 	nc_reset(h->vm);
+	h->started_ms = now_ms();
+	h->sleeping = 0;
+	h->sleep_until_ms = 0;
 	return (int)err;
 }
 
@@ -323,6 +326,8 @@ void nanoc_host_reset(nanoc_vm_t *h)
 	h->dbg_halted = 0;
 	h->dbg_reason = 0;
 	h->started_ms = now_ms();
+	h->sleeping = 0;
+	h->sleep_until_ms = 0;
 }
 
 uint16_t nanoc_host_run(nanoc_vm_t *h, uint16_t cycles)

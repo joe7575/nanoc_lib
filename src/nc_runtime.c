@@ -1035,13 +1035,45 @@ uint16_t nc_run(void *pv_vm, uint16_t *p_cycles) {
             uint8_t arg_idx = 0;
             for(char *p = fmt; *p; p++) {
                 if(*p == '%' && *(p+1)) {
+                    int width = 0, zero = 0, left = 0;
                     p++;
+                    if(*p == '-') { left = 1; p++; }
+                    if(*p == '0') { zero = 1; p++; }
+                    while(*p >= '0' && *p <= '9') {
+                        width = width * 10 + (*p - '0');
+                        p++;
+                    }
                     switch(*p) {
-                        case 'd': nc_print("%d", (int)args[arg_idx++]); break;
-                        case 'u': nc_print("%u", (unsigned)args[arg_idx++]); break;
-                        case 'h': nc_print("%X", (unsigned)args[arg_idx++]); break;
-                        case 'c': nc_print("%c", (int)args[arg_idx++]); break;
-                        case 's': nc_print("%s", get_string(vm, args[arg_idx++])); break;
+                        case 'd': {
+                            int v = (int)args[arg_idx++];
+                            if(width > 0) nc_print(left ? "%-*d" : zero ? "%0*d" : "%*d", width, v);
+                            else nc_print("%d", v);
+                            break;
+                        }
+                        case 'u': {
+                            unsigned v = (unsigned)args[arg_idx++];
+                            if(width > 0) nc_print(left ? "%-*u" : zero ? "%0*u" : "%*u", width, v);
+                            else nc_print("%u", v);
+                            break;
+                        }
+                        case 'h': {
+                            unsigned v = (unsigned)args[arg_idx++];
+                            if(width > 0) nc_print(left ? "%-*X" : zero ? "%0*X" : "%*X", width, v);
+                            else nc_print("%X", v);
+                            break;
+                        }
+                        case 'c': {
+                            int v = (int)args[arg_idx++];
+                            if(width > 0) nc_print(left ? "%-*c" : "%*c", width, v);
+                            else nc_print("%c", v);
+                            break;
+                        }
+                        case 's': {
+                            const char *v = get_string(vm, args[arg_idx++]);
+                            if(width > 0) nc_print(left ? "%-*s" : "%*s", width, v);
+                            else nc_print("%s", v);
+                            break;
+                        }
                         case '%': nc_print("%%"); break;
                         default: nc_print("%%%c", *p); break;
                     }

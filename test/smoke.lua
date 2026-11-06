@@ -224,6 +224,27 @@ assert(n.load(pos,
     "int32 p[0]\n" ..
     "t_payload(1, 2, t_str(1))\n"), "string function payload: " .. n.output(pos))
 
+-- printf width and zero padding
+n.reset(pos)
+n.output_clear(pos)
+assert(n.load(pos,
+    "printf(\"[%2d][%02d][%-3d][%4s]\\n\", 5, 5, 5, \"x\")\n"),
+    "compile failed: " .. n.output(pos))
+n.run(pos, 10000)
+assert(n.output(pos) == "[ 5][05][5  ][   x]\n", "printf width: " .. n.output(pos))
+
+-- local str8 variables are not supported; the error must say so
+n.reset(pos)
+n.output_clear(pos)
+assert(not n.load(pos,
+    "func str8 f() {\n" ..
+    "    str8 s = \"x\"\n" ..
+    "    s = s + \"y\"\n" ..
+    "    return s\n" ..
+    "}\n"))
+assert(n.output(pos):find("local/parameter str8 variables are not writable", 1, true),
+    "str8 local message: " .. n.output(pos))
+
 -- forward-called void function must not share its variable index with a
 -- later global variable
 n.reset(pos)
@@ -250,6 +271,14 @@ assert(n.load(pos,
     "printf(\"neg %d\\n\", ncount)\n"), "compile failed: " .. n.output(pos))
 n.run(pos, 10000)
 assert(n.output(pos) == "neg 5\n", "negative for range: " .. n.output(pos))
+
+-- millis() starts at 0 for a newly loaded program (not at VM creation)
+n.reset(pos)
+n.output_clear(pos)
+os.execute("sleep 1.2")
+assert(n.load(pos, "printf(\"%d\\n\", millis() < 1000)\n"))
+n.run(pos, 10000)
+assert(n.output(pos) == "1\n", "millis reset on load: " .. n.output(pos))
 
 n.destroy(pos)
 assert(not n.is_loaded(pos))

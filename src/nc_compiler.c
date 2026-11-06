@@ -930,7 +930,7 @@ static void compile_var(uint8_t tok) {
 
     if(tok == STRID) { // str8 a = "string"
         if(is_local) {
-            error("string parameters are read-only", a_Symbol[idx].name);
+            error("local/parameter str8 variables are not writable; use a global str8", a_Symbol[idx].name);
             return;
         }
         match(EQ);
