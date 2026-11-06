@@ -58,6 +58,12 @@ local IE = minetest.request_insecure_environment()
 local nanoclib = IE.require("nanoclib")
 ```
 
+## AI-assisted development
+
+Parts of the source code and documentation in this repository were created with
+the help of AI assistants (large language models). All changes are reviewed and
+tested by the maintainer.
+
 ## License
 
 AGPLv3 or later. See [`LICENSE.txt`](LICENSE.txt).
