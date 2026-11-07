@@ -1096,6 +1096,11 @@ static void compile_func(void) {
     a_Symbol[func_idx].type = LABEL;
     a_Symbol[func_idx].value = pCi->pc;
     a_Symbol[func_idx].return_type = return_type;
+#ifdef cfg_DEBUG_SUPPORT
+    // GOSUB jumps to this address; without an entry the debugger would map
+    // it to the last line before the function.
+    dbg_add_line(a_Symbol[func_idx].value, pCi->linenum);
+#endif
     
     // Enter function context
     pCi->in_func = true;

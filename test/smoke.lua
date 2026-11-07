@@ -272,6 +272,28 @@ assert(n.load(pos,
 n.run(pos, 10000)
 assert(n.output(pos) == "neg 5\n", "negative for range: " .. n.output(pos))
 
+-- step over a user function call must stop on the next source line, not on
+-- the function entry (the function label now has a debug line entry)
+n.reset(pos)
+assert(n.load(pos,
+    "int32 c = 1\n" ..
+    "func color_output(int32 v) {\n" ..
+    "    c = v\n" ..
+    "    c = c + 1\n" ..
+    "}\n" ..
+    "while (1) {\n" ..
+    "    color_output(c)\n" ..
+    "    c = c + 2\n" ..
+    "    sleep(1000)\n" ..
+    "}\n"), "compile failed: " .. n.output(pos))
+n.debug_attach(pos, 1, 0)
+assert(n.set_breakpoint(pos, 7) == 7)
+assert(n.run(pos, 10000) == 256)
+assert(n.get_line(pos) == 7, "step start line: " .. n.get_line(pos))
+assert(n.step_mode(pos, 1, 100000) == 2)
+assert(n.get_line(pos) == 8, "step over line: " .. n.get_line(pos))
+n.debug_detach(pos)
+
 -- millis() starts at 0 for a newly loaded program (not at VM creation)
 n.reset(pos)
 n.output_clear(pos)

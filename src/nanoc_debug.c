@@ -167,8 +167,15 @@ int nanoc_dbg_step_mode(nanoc_vm_t *h, int mode, int max_steps)
 		if (line != start_line) {
 			if (mode == 0)
 				break;                        /* step into */
-			if (mode == 1 && vm->fp <= start_fp)
+			if (mode == 1 && vm->fp <= start_fp) {
+				/* The call target is the function ENTER instruction, before
+				 * the frame pointer changes. Do not stop there; step over
+				 * the call and stop at the next line after it returns. */
+				if (ret != NB_HALTED && vm->fp == start_fp && vm->code[vm->pc] == k_ENTER_N2) {
+					continue;
+				}
 				break;                        /* step over */
+			}
 			if (mode == 2 && vm->fp < start_fp)
 				break;                        /* step out */
 		}

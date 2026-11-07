@@ -236,6 +236,7 @@ static int tls_handshake(net_slot_t *s)
 {
 	if (!s->ssl || !s->handshaking)
 		return 0;
+	ERR_clear_error();
 	int r = SSL_do_handshake(s->ssl);
 	if (r == 1) {
 		s->handshaking = 0;
@@ -263,6 +264,7 @@ int nanoc_net_recv(int id, char *buf, int max)
 			if (s->handshaking)
 				return 0;
 		}
+		ERR_clear_error();
 		int n = SSL_read(s->ssl, buf, max);
 		if (n > 0)
 			return n;
@@ -319,6 +321,7 @@ int nanoc_net_flush(int id)
 				return 0;
 		}
 		size_t off = 0;
+		ERR_clear_error();
 		while (off < s->out_len) {
 			int n = SSL_write(s->ssl, s->out + off,
 					(int)(s->out_len - off));
@@ -365,7 +368,11 @@ void nanoc_net_close(int id)
 		return;
 #ifdef NANOC_TLS
 	if (s->ssl) {
+		/* Do not leave OpenSSL errors behind for other connections. */
+		ERR_clear_error();
+		SSL_set_quiet_shutdown(s->ssl, 1);
 		SSL_shutdown(s->ssl);
+		ERR_clear_error();
 		SSL_free(s->ssl);
 		s->ssl = NULL;
 	}
