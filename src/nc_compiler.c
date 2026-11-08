@@ -124,6 +124,7 @@ static void compile_int32_decl(void);
 static void compile_arr_access(void);
 static void compile_printf(void);
 static void compile_end(void);
+static void emit_push_num(uint32_t value);
 static type_t compile_xfunc(uint8_t type);
 static void compile_break(void);
 static void compile_breakpoint(void);
@@ -976,6 +977,19 @@ static void compile_str8_var(void) {
     pCi->p_code[pCi->pc++] = a_Symbol[idx].value;
 }
 
+static void emit_push_num(uint32_t value) {
+    if(value < 256) {
+        pCi->p_code[pCi->pc++] = k_PUSH_NUM_N2;
+        pCi->p_code[pCi->pc++] = value;
+    } else {
+        pCi->p_code[pCi->pc++] = k_PUSH_NUM_N5;
+        pCi->p_code[pCi->pc++] = value & 0xFF;
+        pCi->p_code[pCi->pc++] = (value >> 8) & 0xFF;
+        pCi->p_code[pCi->pc++] = (value >> 16) & 0xFF;
+        pCi->p_code[pCi->pc++] = (value >> 24) & 0xFF;
+    }
+}
+
 /*
 ** int32 x = 0      - variable declaration
 ** int32 arr[10]    - array declaration with size
@@ -1003,6 +1017,27 @@ static void compile_int32_decl(void) {
         match(RBRACKET);
         pCi->p_code[pCi->pc++] = k_DIM_ARR_N2;
         pCi->p_code[pCi->pc++] = a_Symbol[idx].value;
+        // Optional C-style initializer: int32 a[4] = {0, 2, 3, 1}
+        if(lookahead() == EQ) {
+            uint32_t elem = 0;
+            match(EQ);
+            match(LBRACE);
+            while(lookahead() != RBRACE) {
+                emit_push_num(elem++);
+                compile_expression(e_NUM);
+                pCi->p_code[pCi->pc++] = k_SET_ARR_ELEM_N2;
+                pCi->p_code[pCi->pc++] = a_Symbol[idx].value;
+                if(lookahead() == ',') {
+                    match(',');
+                    if(lookahead() == RBRACE) {
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            }
+            match(RBRACE);
+        }
     } else {
         // Variable declaration: int32 x = value
         compile_var(tok);

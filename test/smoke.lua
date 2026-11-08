@@ -224,6 +224,15 @@ assert(n.load(pos,
     "int32 p[0]\n" ..
     "t_payload(1, 2, t_str(1))\n"), "string function payload: " .. n.output(pos))
 
+-- C-style global array initializer (array has size+1 elements)
+n.output_clear(pos)
+assert(n.load(pos,
+    "int32 fa[3] = {4, 5, 6}\n" ..
+    "printf(\"%d %d %d %d\\n\", fa[0], fa[1], fa[2], fa[3])\n"),
+    "compile failed: " .. n.output(pos))
+n.run(pos, 10000)
+assert(n.output(pos) == "4 5 6 0\n", "array initializer: " .. n.output(pos))
+
 -- printf width and zero padding
 n.reset(pos)
 n.output_clear(pos)
